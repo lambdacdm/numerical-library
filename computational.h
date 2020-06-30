@@ -181,10 +181,10 @@ public:
     Matrix(int,int);
     Matrix(const vector<vector<DM>>&, int, int);
     Matrix(const vector<vector<DM>>&);
-    Matrix(const vector<DM> &);
 
     Matrix<DM> &operator=(const Matrix<DM> &);
     DM &operator()(int,int);
+    DM &operator()(int);
     const vector<DM> &operator[](int);
     template <class DB> friend bool operator==(const Matrix<DB> &, const Matrix<DB> &);
     template<class DB> friend ostream &operator<< (ostream &,const Matrix<DB> &);
@@ -255,8 +255,9 @@ public:
     template<class DB> friend Matrix<DB> Inverse(const Matrix<DB>&);
     //范数、条件数
     template <class DB> friend DB Trace(const Matrix<DB>&);
-    template <class DB> friend double Norm(const Matrix<DB>&, double);
-    template <class DB> friend double Norm(const Matrix<DB>&, string);
+    template <class DB> friend DB VectorNorm(const Matrix<DB> &, double);
+    template <class DB> friend DB Norm(const Matrix<DB>&, double);
+    template <class DB> friend DB Norm(const Matrix<DB>&, string);
     template <class DB> friend double Cond(const Matrix<DB>&, double);
     template <class DB> friend double Cond(const Matrix<DB>&, string);
     //插值
@@ -1022,12 +1023,6 @@ template<class DB> Matrix<DB>::Matrix (const vector<vector<DB>> &a)
     column_num = a[0].size();
     value = a;
 }
-template<class DB> Matrix<DB>::Matrix (const vector<DB> &a)
-{
-    row_num = 1;
-    column_num=a.size();
-    value = {a};
-}
 template<class DB> Matrix<DB>& Matrix<DB>::operator=(const Matrix<DB> &b)
 {
     row_num = b.row_num;
@@ -1043,6 +1038,10 @@ template<class DB> DB& Matrix<DB>::operator()(int r,int c)
         return value[0][0];
     }
     return value[r][c];
+}
+template<class DB> DB& Matrix<DB>::operator()(int r)
+{
+    return (*this)(r,0);
 }
 template<class DB> const vector<DB>& Matrix<DB>::operator[](int r)
 {
@@ -2222,12 +2221,22 @@ template <class DB> DB Trace(const Matrix<DB> &a)
     }
     return s;
 }
-template <class DB> double Norm(const Matrix<DB> &a, double p)
+template <class DB> DB VectorNorm(const Matrix<DB> &a,double p)
+{
+    int n=RowSize(a);
+    DB s = 0;
+    for(int i=0;i<n;++i)
+    {
+        s += pow(Abs(Get(a, i, 0)), p);
+    }
+    return pow(s, DB(1) / p);
+}
+template <class DB> DB Norm(const Matrix<DB> &a, double p)
 {
     if(p==INFINITY)
     {
-        double max=0;
-        double s= 0;
+        DB max=0;
+        DB s= 0;
         for (int i = 0; i < a.row_num;++i)
         {
             s = 0;
@@ -2242,8 +2251,8 @@ template <class DB> double Norm(const Matrix<DB> &a, double p)
     }
     if(p==1)
     {
-        double max=0;
-        double s= 0;
+        DB max=0;
+        DB s= 0;
         for (int j = 0; j < a.column_num;++j)
         {
             s = 0;
@@ -2259,7 +2268,7 @@ template <class DB> double Norm(const Matrix<DB> &a, double p)
     cerr << "错误：待开发。" << '\n';
     return 0;
 }
-template <class DB> double Norm(const Matrix<DB> &a, string str)
+template <class DB> DB Norm(const Matrix<DB> &a, string str)
 {
     if(str=="Frobenius")
     {
@@ -2860,17 +2869,17 @@ template <class DD> DD D(std::function<DD(DD)> f,DD x,string str)
 {
     if(str=="center")
     {
-        DD h = 1e-7;
+        const DD h = 1e-7;
         return (f(x + h) - f(x - h)) / (2 * h);
     }
     if(str=="forward")
     {
-        DD h = 1e-7;
+        const DD h = 1e-7;
         return (f(x + h) - f(x))/h;
     }
     if(str=="backward")
     {
-        DD h = 1e-7;
+        const DD h = 1e-7;
         return (f(x) - f(x-h))/h;
     }
     cerr << "错误：没有定义该方法。" << '\n';
@@ -2894,8 +2903,33 @@ template<class DD> DD D(int n,std::function<DD(DD)>f, DD x)
 {
     return D(n, f)(x);
 }
+template<class DD> DD D(std::function<DD(Matrix<DD>)>f,int n,const Matrix<DD> &x)
+{
+    if(n>=RowSize(x))
+    {
+        cerr << "错误：求偏导的分量越界" << '\n';
+        return f(x);
+    }
+    const DD h=1e-7;
+    auto y=x;
+    y(n,0)=Get(x,n,0)+h;
+    return (f(y) - f(x)) / h;
+}
+template<class DD> std::function<DD(Matrix<DD>)> D(std::function<DD(Matrix<DD>)>f,int n)
+{
+    return [=](Matrix<DD> x){return D(f,n,x);};
+}
+template<class DD> Matrix<DD> D(const vector<std::function<DD(Matrix<DD>)>> &f,const Matrix<DD> &x)
+{
+    int n=f.size();
+    Matrix<DD> J(n,n);
+    for(int i=0;i<n;++i)
+        for(int j=0;j<n;++j)
+            J(i, j) = D(f[i], j, x);
+    return J;
+}
 
-//一元函数求根
+//方程(组)求根
 template <class DD> DD Iteration(std::function<DD(DD)> phi, DD a)
 {
     int times = 100;//迭代次数
@@ -2914,6 +2948,73 @@ template <class DD> DD Iteration(std::function<DD(DD)> phi, DD a)
         cerr << "可能是初值的选择使迭代法不收敛，或者迭代函数的选择使收敛速度很慢。" << '\n';
     }
     return x;
+}
+template<class DD,class DM,class DF> 
+Matrix<DD> Iteration(const DF &ini,const DM &phi,const Matrix<DD>&x0)
+{
+    const int times = 20;//迭代次数
+    const DD eps = 1e-10;//精度
+    int count = 0;
+    auto x = x0;
+    int n = RowSize(x0);
+    Matrix<DD> fx(n, 1);
+    Matrix<DD> B;
+    ini(x,fx, B);
+    do
+    {
+        phi(x, fx,B);
+        ++count;
+    } while (VectorNorm(fx,2) >= eps && count<times);
+    if(count>=times)
+        cerr << "警告：未在指定次数内达到预期精度" << '\n';
+    return x;
+}
+template<class DD> 
+Matrix<DD> FindRoot(const vector<std::function<DD(Matrix<DD>)>> &f,const Matrix<DD> &x0,string str)
+{
+    if(str=="Newton")
+    {
+        int n = RowSize(x0);
+        auto ini=[](Matrix<DD> &,Matrix<DD>&,Matrix<DD>&){};
+        auto phi = [=](Matrix<DD> &x, Matrix<DD> &fx, Matrix<DD> &B) 
+        {
+            for(int j=0;j<n;++j)
+                fx(j, 0) = f[j](x);
+            B = Inverse(D(f, x));
+            x=x-B*fx;
+        };
+        return Iteration(ini, phi, x0);
+    }
+    if(str=="Broyden")
+    {
+        int n = RowSize(x0);
+        auto ini=[=](Matrix<DD> &x,Matrix<DD> &fx,Matrix<DD> &B)
+        {
+            for(int j=0;j<n;++j)
+                fx(j, 0) = f[j](x);
+            B = Inverse(D(f, x));
+        };
+        auto phi = [=](Matrix<DD> &x, Matrix<DD> &fx, Matrix<DD> &B) 
+        {
+            auto fxpre = fx;
+            auto xpre = x;
+            x = x - B * fx;
+            auto s = x - xpre;
+            for(int j=0;j<n;++j)
+                fx(j, 0) = f[j](x);
+            auto y = fx - fxpre;
+            auto stb = Transpose(s) * B;
+            B = B + (s - B * y) * stb / (stb * y);
+        };
+        return Iteration(ini, phi, x0);
+    }
+    cerr << "错误：没有定义该方法" << '\n';
+    return x0;
+}
+template<class DD> 
+Matrix<DD> FindRoot(const vector<std::function<DD(Matrix<DD>)>> &f,const Matrix<DD> &x0)
+{
+    return FindRoot(f, x0, "Newton");
 }
 template<class DD> DD FindRoot(std::function<DD(DD)> f, DD a,DD b,string str)
 {
