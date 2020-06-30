@@ -154,18 +154,163 @@ public:
     template <class DD> friend Polynomial<DD> Integrate(const Polynomial<DD> &);
     template <class DD> friend DD Integrate(const Polynomial<DD> &,DD,DD);
     template <class DD> friend Polynomial<DD> Schmidt(int,DD,DD);
+    template <class DD> friend Polynomial<DD> Legendre(int n);
 
 private:
     int poly_deg;
     vector<DC> poly_coeff;
 };
-Polynomial<double> Legendre(int n);
 Polynomial<double> operator*(const Polynomial<double>&,const Polynomial<double>&);
 Polynomial<float> operator*(const Polynomial<float>&,const Polynomial<float>&);
 Polynomial<complex<double>> operator*(const Polynomial<complex<double>> &, const Polynomial<complex<double>> &);
 Polynomial<complex<float>> operator*(const Polynomial<complex<float>> &, const Polynomial<complex<float>> &);
 Polynomial<unsigned> operator*(const Polynomial<unsigned> &, const Polynomial<unsigned> &);
 Polynomial<unsigned long long> operator*(const Polynomial<unsigned long long> &, const Polynomial<unsigned long long> &);
+
+
+//矩阵类
+template<class DM>
+class Matrix
+{
+public:
+    Matrix();
+    Matrix(DM);
+    Matrix(int,int);
+    Matrix(const vector<vector<DM>>&, int, int);
+    Matrix(const vector<vector<DM>>&);
+    Matrix(const vector<DM> &);
+
+    Matrix<DM> &operator=(const Matrix<DM> &);
+    DM &operator()(int,int);
+    const vector<DM> &operator[](int);
+    template <class DB> friend bool operator==(const Matrix<DB> &, const Matrix<DB> &);
+    template<class DB> friend ostream &operator<< (ostream &,const Matrix<DB> &);
+    template<class DB> friend Matrix<DB> operator+(const Matrix<DB> &,const Matrix<DB>&);
+    template<class DB> friend Matrix<DB> operator-(const Matrix<DB> &,const Matrix<DB>&);
+    template <class DB>friend Matrix<DB> operator-(const Matrix<DB> &);
+    template<class DB> friend Matrix<DB> operator*(const Matrix<DB> &,const Matrix<DB>&);
+    template<class DB> friend Matrix<DB> operator/(const Matrix<DB> &,const Matrix<DB>&);
+    template<class DB> friend Matrix<DB> operator^(const Matrix<DB> &,int);
+    template <class DB> friend Matrix<DB> operator+(DB, const Matrix<DB>&);
+    template <class DB> friend Matrix<DB> operator+(const Matrix<DB>&,DB);
+    template <class DB> friend Matrix<DB> operator-(DB, const Matrix<DB>&);
+    template <class DB> friend Matrix<DB> operator-(const Matrix<DB>&,DB);
+    template <class DB> friend Matrix<DB> operator*(DB, const Matrix<DB>&);
+    template <class DB> friend Matrix<DB> operator*(const Matrix<DB>&,DB);
+    template<class DB> friend Matrix<DB> operator/(const Matrix<DB> &,DB);
+    Matrix<DM> &operator+=(const Matrix<DM> &);
+    Matrix<DM> &operator-=(const Matrix<DM> &);
+
+    template <class DB> friend DB Get(const Matrix<DB> &, int, int);
+    template<class DB> friend void Clear(Matrix<DB>&);
+    template<class DB> friend void Disp(const Matrix<DB>&);
+    template <class DB> friend Matrix<DB> Generate(int, int);
+    template <class DB> friend Matrix<DB> Act(std::function<DB(DB)>, const Matrix<DB> &);
+    template <class DB> friend Matrix<DB> Act(std::function<DB(DB, DB)>, const Matrix<DB> &, const Matrix<DB> &);
+    template <class DB> friend Matrix<DB> Table(std::function<DB(DB)>, const vector<DB>&);
+    template<class DB> friend Matrix<DB> Transpose(const Matrix<DB>&); 
+    template<class DB> friend Matrix<DB> Diagonal(const Matrix<DB>&);
+    template <class DB> friend Matrix<DB> DiagonalMatrix(const vector<DB> &);
+    template<class DB> friend int RowSize(const Matrix<DB>&);
+    template<class DB> friend int ColumnSize(const Matrix<DB>&);
+    template <class DB> friend void Resize(Matrix<DB> &,int,int);
+    template <class DB> friend Matrix<DB> SubRow(const Matrix<DB> &, int, int);
+    template <class DB> friend Matrix<DB> SubMatrix(const Matrix<DB> &, int, int, int, int);
+    template <class DB> friend void DeleteRow(Matrix<DB> &,int n);
+    template <class DB> friend void ReplaceRow(Matrix<DB> &, int n,const Matrix<DB>&);
+    //解线性方程组
+    template<class DB> friend Matrix<DB> RowCat(const Matrix<DB>&, const Matrix<DB>&);
+    template <class DB> friend Matrix<DB> RowCat(const vector<Matrix<DB>>&);
+    template <class DB> friend Matrix<DB> ColumnCat(const Matrix<DB> &, const Matrix<DB> &);
+    template<class DB> friend void SwapRow(Matrix<DB>&,int,int);
+    template <class DB> friend Matrix<DB> USplit(const Matrix<DB>&);
+    template <class DB> friend vector<Matrix<DB>> GaussianElimination(const Matrix<DB>&,const Matrix<DB>&);
+    template <class DB> friend Matrix<DB> LUCompactDecomposition(const Matrix<DB>&);
+    template <class DB> friend Matrix<DB> LUPCompactDecomposition(const Matrix<DB>&, vector<int> &, int&, DB&);
+    template <class DB> friend Matrix<DB> GaussianElimination(const Matrix<DB>&);
+    template <class DB> friend int MatrixRank(const Matrix<DB>&);
+    template <class DB> friend DB Det(const Matrix<DB>&);
+    template <class DB> friend vector<Matrix<DB>> LUDecomposition(const Matrix<DB>&);
+    template <class DB> friend vector<Matrix<DB>> LUPDecomposition(const Matrix<DB> &);
+    template <class DB> friend vector<vector<DB>> Tridiagonal(const Matrix<DB>&);
+    template <class DB> friend vector<vector<DB>> TridiagonalSeparation(const vector<vector<DB>>&);
+    template <class DB> friend Matrix<DB> CholeskyCompactDecomposition(const Matrix<DB>&);
+    template <class DB> friend vector<Matrix<DB>> CholeskyDecomposition(const Matrix<DB> &);
+    template <class DB> friend vector<Matrix<DB>> JacobiIterationMatrix(const Matrix<DB>&, const Matrix<DB>&);
+    template <class DB> friend vector<Matrix<DB>> GSIterationMatrix(const Matrix<DB>&, const Matrix<DB>&);
+    template <class DB> friend Matrix<DB> LUSolve(const Matrix<DB>&,const Matrix<DB>&);
+    template <class DB> friend Matrix<DB> LUPSolve(const Matrix<DB>&,const vector<int>&,const Matrix<DB>&);
+    template <class DB> friend Matrix<DB> LSolve(const Matrix<DB>&,const Matrix<DB>&);
+    template <class DB> friend Matrix<DB> USolve(const Matrix<DB>&,const Matrix<DB>&);
+    template <class DB> friend Matrix<DB> TridiagonalSolve(const vector<vector<DB>>&, const Matrix<DB>&);
+    template <class DB> friend Matrix<DB> Iteration(const Matrix<DB>&, const Matrix<DB>&);
+    template<class DB> friend Matrix<DB> LinearSolve(const Matrix<DB>&,const Matrix<DB>&,string,double);
+    template<class DB> friend Matrix<DB> LinearSolve(const Matrix<DB>&,const Matrix<DB>&,string);
+    template<class DB> friend Matrix<DB> LinearSolve(const Matrix<DB>&,const Matrix<DB>&);
+    //求逆
+    template<class DB> friend Matrix<DB> Eye(int);
+    template<class DB> friend Matrix<DB> Inverse(const Matrix<DB>&);
+    //范数、条件数
+    template <class DB> friend DB Trace(const Matrix<DB>&);
+    template <class DB> friend double Norm(const Matrix<DB>&, double);
+    template <class DB> friend double Norm(const Matrix<DB>&, string);
+    template <class DB> friend double Cond(const Matrix<DB>&, double);
+    template <class DB> friend double Cond(const Matrix<DB>&, string);
+    //插值
+    template <class DB> friend vector<std::function<DB(DB)>> LagrangeBasis(const Matrix<DB> &);
+    template <class DB> friend DB LBasisToInterp(const vector<std::function<DB(DB)>>&,const Matrix<DB> &,DB);
+    template <class DB> friend Matrix<DB> DifferenceQuotientTable(const Matrix<DB> &);
+    template <class DB> friend Matrix<DB> DividedDifferenceTable(const Matrix<DB> &);
+    template <class DB> friend DB DifferenceQuotient(const Matrix<DB> &);
+    template <class DB> friend DB DifferenceQuotient(std::function<DB(DB)>, const Matrix<DB> &);
+    template <class DB> friend DB DQTableToInterp(const Matrix<DB> &, const Matrix<DB> &,DB);
+    template <class DB> friend DB DDTableToInterp(const Matrix<DB> &, const Matrix<DB> &,DB);
+    template <class DB> friend DB _2P3DHermiteInterp(const Matrix<DB> &,int i,int j,DB);
+    template <class DB> friend DB _3P3DHermiteInterp(const Matrix<DB> &,DB);
+    template <class DE> friend Matrix<DE> SplineSlope(const Matrix<DE> &);
+    template <class DE> friend DE Interpolation(const Matrix<DE> &,DE,string);
+    template <class DE> friend DE Interpolation(const Matrix<DE> &,DE);
+    template <class DE> friend Matrix<DE> Interpolation(const Matrix<DE> &A, const Matrix<DE> &x, string);
+    template <class DE> friend std::function<DE(DE)> Interpolation(const Matrix<DE> &,string);
+    //拟合与逼近
+    template <class DB> friend Matrix<DB> PseudoInverse(const Matrix<DB>&);
+    template <class DB> friend Matrix<DB> LeastSquares(const Matrix<DB>&, const Matrix<DB>&);
+    template <class DB> friend Polynomial<DB> PolyFit(const Matrix<DB> &, const vector<Polynomial<DB>> &);
+    template <class DB> friend Polynomial<DB> PolyFit(const Matrix<DB>&,int);
+    template <class DB> friend Polynomial<DB> PolyFit(std::function<DB(DB)>,const vector<Polynomial<DB>>&,DB,DB);
+private:
+    vector<vector<DM>> value;
+    int row_num;
+    int column_num;
+};
+template <class DB> const Matrix<DB> EmptyMatrix = Matrix<DB>(0, 0);
+
+//积分
+template <class DI> DI Integrate(std::function<DI(DI)>,DI,DI,string);
+template <class DI> DI Integrate(std::function<DI(DI)>,DI,DI);
+
+//微分
+template <class DD> DD D(std::function<DD(DD)>, DD);
+
+//一元函数求根
+template <class DD> DD Iteration(std::function<DD(DD)>, DD);
+template<class DD> DD FindRoot(std::function<DD(DD)>, DD,DD);
+template <class DD> DD FindRoot(std::function<DD(DD)>, DD,string);
+template <class DD> DD FindRoot(std::function<DD(DD)>, DD);
+template <class DD> DD FindRoot(std::function<DD(DD)>, DD,string,int);
+template <class DD> DD Sqrt(DD);
+template <> double Sqrt(double);
+
+//杂例II
+BigInt Factorial(int);
+BigInt Fibonacci_r(int);
+BigInt Fibonacci_p(int);
+BigInt Fibonacci_m(int);
+BigInt Fibonacci(int);
+
+
+//-----定义部分-----
+
 
 //快速傅里叶变换
 inline int Rev(int k,int m)
@@ -430,148 +575,6 @@ template<class DC> vector<DC> CarryBit(const vector<DC>& a,DC bit)
     }
     return r;
 }
-
-//矩阵类
-template<class DM>
-class Matrix
-{
-public:
-    Matrix();
-    Matrix(DM);
-    Matrix(int,int);
-    Matrix(const vector<vector<DM>>&, int, int);
-    Matrix(const vector<vector<DM>>&);
-    Matrix(const vector<DM> &);
-
-    Matrix<DM> &operator=(const Matrix<DM> &);
-    DM &operator()(int,int);
-    const vector<DM> &operator[](int);
-    template <class DB> friend bool operator==(const Matrix<DB> &, const Matrix<DB> &);
-    template<class DB> friend ostream &operator<< (ostream &,const Matrix<DB> &);
-    template<class DB> friend Matrix<DB> operator+(const Matrix<DB> &,const Matrix<DB>&);
-    template<class DB> friend Matrix<DB> operator-(const Matrix<DB> &,const Matrix<DB>&);
-    template <class DB>friend Matrix<DB> operator-(const Matrix<DB> &);
-    template<class DB> friend Matrix<DB> operator*(const Matrix<DB> &,const Matrix<DB>&);
-    template<class DB> friend Matrix<DB> operator/(const Matrix<DB> &,const Matrix<DB>&);
-    template<class DB> friend Matrix<DB> operator^(const Matrix<DB> &,int);
-    template <class DB> friend Matrix<DB> operator+(DB, const Matrix<DB>&);
-    template <class DB> friend Matrix<DB> operator+(const Matrix<DB>&,DB);
-    template <class DB> friend Matrix<DB> operator-(DB, const Matrix<DB>&);
-    template <class DB> friend Matrix<DB> operator-(const Matrix<DB>&,DB);
-    template <class DB> friend Matrix<DB> operator*(DB, const Matrix<DB>&);
-    template <class DB> friend Matrix<DB> operator*(const Matrix<DB>&,DB);
-    template<class DB> friend Matrix<DB> operator/(const Matrix<DB> &,DB);
-    Matrix<DM> &operator+=(const Matrix<DM> &);
-    Matrix<DM> &operator-=(const Matrix<DM> &);
-
-    template <class DB> friend DB Get(const Matrix<DB> &, int, int);
-    template<class DB> friend void Clear(Matrix<DB>&);
-    template<class DB> friend void Disp(const Matrix<DB>&);
-    template <class DB> friend Matrix<DB> Generate(int, int);
-    template <class DB> friend Matrix<DB> Act(std::function<DB(DB)>, const Matrix<DB> &);
-    template <class DB> friend Matrix<DB> Act(std::function<DB(DB, DB)>, const Matrix<DB> &, const Matrix<DB> &);
-    template <class DB> friend Matrix<DB> Table(std::function<DB(DB)>, const vector<DB>&);
-    template<class DB> friend Matrix<DB> Transpose(const Matrix<DB>&); 
-    template<class DB> friend Matrix<DB> Diagonal(const Matrix<DB>&);
-    template <class DB> friend Matrix<DB> DiagonalMatrix(const vector<DB> &);
-    template<class DB> friend int RowSize(const Matrix<DB>&);
-    template<class DB> friend int ColumnSize(const Matrix<DB>&);
-    template <class DB> friend void Resize(Matrix<DB> &,int,int);
-    template <class DB> friend Matrix<DB> SubRow(const Matrix<DB> &, int, int);
-    template <class DB> friend Matrix<DB> SubMatrix(const Matrix<DB> &, int, int, int, int);
-    template <class DB> friend void DeleteRow(Matrix<DB> &,int n);
-    template <class DB> friend void ReplaceRow(Matrix<DB> &, int n,const Matrix<DB>&);
-    //解线性方程组
-    template<class DB> friend Matrix<DB> RowCat(const Matrix<DB>&, const Matrix<DB>&);
-    template <class DB> friend Matrix<DB> RowCat(const vector<Matrix<DB>>&);
-    template <class DB> friend Matrix<DB> ColumnCat(const Matrix<DB> &, const Matrix<DB> &);
-    template<class DB> friend void SwapRow(Matrix<DB>&,int,int);
-    template <class DB> friend Matrix<DB> USplit(const Matrix<DB>&);
-    template <class DB> friend vector<Matrix<DB>> GaussianElimination(const Matrix<DB>&,const Matrix<DB>&);
-    template <class DB> friend Matrix<DB> LUDecomposition(const Matrix<DB>&);
-    template <class DB> friend Matrix<DB> LUPDecomposition(const Matrix<DB>&, vector<int> &, int&, DB&);
-    template <class DB> friend Matrix<DB> GaussianElimination(const Matrix<DB>&);
-    template <class DB> friend int MatrixRank(const Matrix<DB>&);
-    template <class DB> friend DB Det(const Matrix<DB>&);
-    template <class DB> friend vector<Matrix<DB>> DoolittleDecomposition(const Matrix<DB>&);
-    template <class DB> friend vector<vector<DB>> Tridiagonal(const Matrix<DB>&);
-    template <class DB> friend vector<vector<DB>> TridiagonalDecomposition(const vector<vector<DB>>&);
-    template <class DB> friend Matrix<DB> CholeskyDecomposition(const Matrix<DB>&);
-    template <class DB> friend vector<Matrix<DB>> JacobiIterationMatrix(const Matrix<DB>&, const Matrix<DB>&);
-    template <class DB> friend vector<Matrix<DB>> GSIterationMatrix(const Matrix<DB>&, const Matrix<DB>&);
-    template <class DB> friend Matrix<DB> LUSolve(const Matrix<DB>&,const Matrix<DB>&);
-    template <class DB> friend Matrix<DB> LUPSolve(const Matrix<DB>&,const vector<int>&,const Matrix<DB>&);
-    template <class DB> friend Matrix<DB> LSolve(const Matrix<DB>&,const Matrix<DB>&);
-    template <class DB> friend Matrix<DB> USolve(const Matrix<DB>&,const Matrix<DB>&);
-    template <class DB> friend Matrix<DB> TridiagonalSolve(const vector<vector<DB>>&, const Matrix<DB>&);
-    template <class DB> friend Matrix<DB> Iteration(const Matrix<DB>&, const Matrix<DB>&);
-    template<class DB> friend Matrix<DB> LinearSolve(const Matrix<DB>&,const Matrix<DB>&,string,double);
-    template<class DB> friend Matrix<DB> LinearSolve(const Matrix<DB>&,const Matrix<DB>&,string);
-    template<class DB> friend Matrix<DB> LinearSolve(const Matrix<DB>&,const Matrix<DB>&);
-    //求逆
-    template<class DB> friend Matrix<DB> Eye(int);
-    template<class DB> friend Matrix<DB> Inverse(const Matrix<DB>&);
-    //范数、条件数
-    template <class DB> friend DB Trace(const Matrix<DB>&);
-    template <class DB> friend double Norm(const Matrix<DB>&, double);
-    template <class DB> friend double Norm(const Matrix<DB>&, string);
-    template <class DB> friend double Cond(const Matrix<DB>&, double);
-    template <class DB> friend double Cond(const Matrix<DB>&, string);
-    //插值
-    template <class DB> friend vector<std::function<DB(DB)>> LagrangeBasis(const Matrix<DB> &);
-    template <class DB> friend DB LBasisToInterp(const vector<std::function<DB(DB)>>&,const Matrix<DB> &,DB);
-    template <class DB> friend Matrix<DB> DifferenceQuotientTable(const Matrix<DB> &);
-    template <class DB> friend Matrix<DB> DividedDifferenceTable(const Matrix<DB> &);
-    template <class DB> friend DB DifferenceQuotient(const Matrix<DB> &);
-    template <class DB> friend DB DifferenceQuotient(std::function<DB(DB)>, const Matrix<DB> &);
-    template <class DB> friend DB DQTableToInterp(const Matrix<DB> &, const Matrix<DB> &,DB);
-    template <class DB> friend DB DDTableToInterp(const Matrix<DB> &, const Matrix<DB> &,DB);
-    template <class DB> friend DB _2P3DHermiteInterp(const Matrix<DB> &,int i,int j,DB);
-    template <class DB> friend DB _3P3DHermiteInterp(const Matrix<DB> &,DB);
-    template <class DE> friend Matrix<DE> SplineSlope(const Matrix<DE> &);
-    template <class DE> friend DE Interpolation(const Matrix<DE> &,DE,string);
-    template <class DE> friend DE Interpolation(const Matrix<DE> &,DE);
-    template <class DE> friend Matrix<DE> Interpolation(const Matrix<DE> &A, const Matrix<DE> &x, string);
-    template <class DE> friend std::function<DE(DE)> Interpolation(const Matrix<DE> &,string);
-    //拟合与逼近
-    template <class DB> friend Matrix<DB> PseudoInverse(const Matrix<DB>&);
-    template <class DB> friend Matrix<DB> LeastSquares(const Matrix<DB>&, const Matrix<DB>&);
-    template <class DB> friend Polynomial<DB> PolyFit(const Matrix<DB> &, const vector<Polynomial<DB>> &);
-    template <class DB> friend Polynomial<DB> PolyFit(const Matrix<DB>&,int);
-    template <class DB> friend Polynomial<DB> PolyFit(std::function<DB(DB)>,const vector<Polynomial<DB>>&,DB,DB);
-private:
-    vector<vector<DM>> value;
-    int row_num;
-    int column_num;
-};
-template <class DB> const Matrix<DB> EmptyMatrix = Matrix<DB>(0, 0);
-
-//积分
-template <class DI> DI Integrate(std::function<DI(DI)>,DI,DI,string);
-template <class DI> DI Integrate(std::function<DI(DI)>,DI,DI);
-
-//微分
-template <class DD> DD D(std::function<DD(DD)>, DD);
-
-//一元函数求根
-template <class DD> DD Iteration(std::function<DD(DD)>, DD);
-template<class DD> DD FindRoot(std::function<DD(DD)>, DD,DD);
-template <class DD> DD FindRoot(std::function<DD(DD)>, DD,string);
-template <class DD> DD FindRoot(std::function<DD(DD)>, DD);
-template <class DD> DD FindRoot(std::function<DD(DD)>, DD,string,int);
-template <class DD> DD Sqrt(DD);
-template <> double Sqrt(double);
-
-//杂例II
-BigInt Factorial(int);
-BigInt Fibonacci_r(int);
-BigInt Fibonacci_p(int);
-BigInt Fibonacci_m(int);
-BigInt Fibonacci(int);
-
-
-//-----定义部分-----
-
 
 //杂例I
 template<class DM> double Norm(const vector<DM> &a, double p)
@@ -955,6 +958,30 @@ template <class DD> Polynomial<DD> Schmidt(int n,DD a,DD b)
         }
     }
     return phi[n];
+}
+template<class DD> Polynomial<DD> Legendre(int n)
+{
+    if(n<0)
+        return Polynomial<DD>({0}, 0);
+    vector<Polynomial<DD>> p({
+        Polynomial<DD>({1}, 0),
+        Polynomial<DD>({0, 1}, 1),
+        Polynomial<DD>({-0.5, 0, 1.5}, 2),
+        Polynomial<DD>({0, -1.5, 0, 2.5}, 3),
+        Polynomial<DD>({0.375, 0, -3.75, 0, 4.375}, 4)
+    });
+    if(n<=4)
+        return p[n];
+    Polynomial<DD> pre1 = p[4];
+    Polynomial<DD> pre2 = p[3];
+    Polynomial<DD> now;
+    for (int k = 5; k <= n;++k)
+    {
+        now = (DD(2 *k- 1) /k) *(pre1>>1) - (DD(k - 1) /k) * pre2;
+        pre2 = pre1;
+        pre1 = now;
+    }
+    return now;
 }
 
 //矩阵类
@@ -1514,7 +1541,7 @@ template <class DB> vector<Matrix<DB>> GaussianElimination(const Matrix<DB> &A, 
     }
     return {GA,Gb};
 }
-template <class DB> Matrix<DB> LUDecomposition(const Matrix<DB> &A)
+template <class DB> Matrix<DB> LUCompactDecomposition(const Matrix<DB> &A)
 {
     if(A.row_num!=A.column_num)
     {
@@ -1552,7 +1579,7 @@ template <class DB> Matrix<DB> LUDecomposition(const Matrix<DB> &A)
     }
     return LU;
 }
-template <class DB> Matrix<DB> LUPDecomposition(const Matrix<DB> &A, vector<int> &pi, int &rank, DB &det)
+template <class DB> Matrix<DB> LUPCompactDecomposition(const Matrix<DB> &A, vector<int> &pi, int &rank, DB &det)
 {
     Matrix<DB> LU;
     if(A.row_num>A.column_num)
@@ -1609,7 +1636,7 @@ template <class DB> Matrix<DB> GaussianElimination(const Matrix<DB> &A)
     vector<int> pi;
     int rank = 0;
     DB det = 1;
-    Matrix<DB> LU=LUPDecomposition(A, pi, rank, det);
+    Matrix<DB> LU=LUPCompactDecomposition(A, pi, rank, det);
     int n=LU.row_num;
     for (int i = 0;i<n;++i)
     {
@@ -1625,7 +1652,7 @@ template <class DB> int MatrixRank(const Matrix<DB> &A)
     vector<int> pi;
     int rank = 0;
     DB det = 1;
-    LUPDecomposition(A, pi, rank, det);
+    LUPCompactDecomposition(A, pi, rank, det);
     return rank;
 }
 template <class DB> DB Det(const Matrix<DB> &A)
@@ -1633,12 +1660,12 @@ template <class DB> DB Det(const Matrix<DB> &A)
     vector<int> pi;
     int rank = 0;
     DB det = 1;
-    LUPDecomposition(A, pi, rank, det);
+    LUPCompactDecomposition(A, pi, rank, det);
     return det;
 }
-template <class DB> vector<Matrix<DB>> DoolittleDecomposition(const Matrix<DB> &A)
+template <class DB> vector<Matrix<DB>> LUDecomposition(const Matrix<DB> &A)
 {
-    Matrix<DB> LU=LUDecomposition(A);
+    Matrix<DB> LU=LUCompactDecomposition(A);
     int n = LU.row_num;
     Matrix<DB> L = LU;
     Matrix<DB> U = LU;
@@ -1656,6 +1683,27 @@ template <class DB> vector<Matrix<DB>> DoolittleDecomposition(const Matrix<DB> &
     }
     return {L, U};
 }
+template <class DB> vector<Matrix<DB>> LUPDecomposition(const Matrix<DB> &A)
+{
+    int _rank;
+    DB det;
+    vector<int> pi;
+    const Matrix<DB> &LUP=LUPCompactDecomposition(A, pi, _rank, det);
+    int n=A.column_num;
+    Matrix<DB> L(n,n);
+    Matrix<DB> U(n,n);
+    Matrix<DB> P(n,n);
+    for (int i = 0; i < n;++i)
+    {
+        P.value[i][pi[i]] = 1;
+        L.value[i][i]=1;
+        for(int j=0;j<i;++j)
+            L.value[i][j] = LUP.value[i][j];
+        for (int j = i;j<n;++j)
+            U.value[i][j]=LUP.value[i][j];
+    }
+    return {L, U, P};
+}
 template <class DB> vector<vector<DB>> Tridiagonal(const Matrix<DB> &A)
 {
     int n = A.row_num;
@@ -1671,7 +1719,7 @@ template <class DB> vector<vector<DB>> Tridiagonal(const Matrix<DB> &A)
     c.push_back(0);
     return {a, b, c};
 }
-template <class DB> vector<vector<DB>> TridiagonalDecomposition(const vector<vector<DB>> &T)
+template <class DB> vector<vector<DB>> TridiagonalSeparation(const vector<vector<DB>> &T)
 {
     int n = T[0].size();
     vector<DB> l(n);
@@ -1685,7 +1733,7 @@ template <class DB> vector<vector<DB>> TridiagonalDecomposition(const vector<vec
     }
     return {l, u,T[2]};
 }
-template <class DB> Matrix<DB> CholeskyDecomposition(const Matrix<DB> &A)
+template <class DB> Matrix<DB> CholeskyCompactDecomposition(const Matrix<DB> &A)
 {
     if(A.row_num!=A.column_num)
     {
@@ -1719,6 +1767,11 @@ template <class DB> Matrix<DB> CholeskyDecomposition(const Matrix<DB> &A)
         }    
     }
     return L;
+}
+template <class DB> vector<Matrix<DB>> CholeskyDecomposition(const Matrix<DB> &A)
+{
+    const Matrix<DB> &L=CholeskyCompactDecomposition(A);
+    return {L,Transpose(L)};
 }
 template <class DB> vector<Matrix<DB>> JacobiIterationMatrix(const Matrix<DB> &A,const Matrix<DB>&b)
 {
@@ -1860,7 +1913,7 @@ template<class DB> Matrix<DB> USolve(const Matrix<DB> &U,const Matrix<DB> &y)
 }
 template <class DB> Matrix<DB> TridiagonalSolve(const vector<vector<DB>> &T, const Matrix<DB> &f)
 {
-    const vector<vector<DB>> &LUC = TridiagonalDecomposition(T);
+    const vector<vector<DB>> &LUC = TridiagonalSeparation(T);
     int n = f.row_num;
     int m = f.column_num;
     Matrix<DB> y(n,m);
@@ -1982,14 +2035,14 @@ template<class DB> Matrix<DB> LinearSolve(const Matrix<DB> &A,const Matrix<DB> &
     } 
     if(str=="LU")
     {
-        return LUSolve(LUDecomposition(A), b);
+        return LUSolve(LUCompactDecomposition(A), b);
     }
     if(str=="LUP")
     {
         vector<int> pi;
         int rank;
         DB det;
-        Matrix<DB> LU=LUPDecomposition(A, pi, rank, det);
+        Matrix<DB> LU=LUPCompactDecomposition(A, pi, rank, det);
         if(rank<A.row_num)
         {
             cerr << "错误：遇到奇异矩阵，无法求解。" << '\n';
@@ -2003,7 +2056,7 @@ template<class DB> Matrix<DB> LinearSolve(const Matrix<DB> &A,const Matrix<DB> &
     }
     if(str=="Cholesky"|| str=="squareroot")
     {
-        Matrix<DB> L = CholeskyDecomposition(A);
+        Matrix<DB> L = CholeskyCompactDecomposition(A);
         return USolve(Transpose(L), LSolve(L, b));
     }
     if(str=="Jacobi")

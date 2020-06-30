@@ -728,30 +728,6 @@ BigInt Fibonacci(int n)
 
 
 //多项式
-Polynomial<double> Legendre(int n)
-{
-    if(n<0)
-        return Polynomial<double>({0}, 0);
-    vector<Polynomial<double>> p({
-        Polynomial<double>({1}, 0),
-        Polynomial<double>({0, 1}, 1),
-        Polynomial<double>({-0.5, 0, 1.5}, 2),
-        Polynomial<double>({0, -1.5, 0, 2.5}, 3),
-        Polynomial<double>({0.375, 0, -3.75, 0, 4.375}, 4)
-    });
-    if(n<=4)
-        return p[n];
-    Polynomial<double> pre1 = p[4];
-    Polynomial<double> pre2 = p[3];
-    Polynomial<double> now;
-    for (int k = 5; k <= n;++k)
-    {
-        now = (double(2 *k- 1) /k) *(pre1>>1) - (double(k - 1) /k) * pre2;
-        pre2 = pre1;
-        pre1 = now;
-    }
-    return now;
-}
 Polynomial<double> operator*(const Polynomial<double>& f,const Polynomial<double>& g)
 {
     return Polynomial<double>(RealConvolution(GetCoef(f), GetCoef(g)));
