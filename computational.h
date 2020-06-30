@@ -12,12 +12,15 @@
 #include<deque>
 #include<thread>
 #include<execution>
+#include<utility>
 using std::cerr;
 using std::complex;
 using std::cout;
 using std::deque;
+using std::get;
 using std::ios;
 using std::ostream;
+using std::pair;
 using std::ref;
 using std::string;
 using std::swap;
@@ -2174,6 +2177,8 @@ template<class DB> Matrix<DB> Inverse(const Matrix<DB> &a)
 }
 template<class DB> Matrix<DB> operator/(const Matrix<DB> &a,const Matrix<DB>&b)
 {
+    if(b.column_num==1 && b.row_num==1)
+        return a / Get(b, 0, 0);
     return a * Inverse(b);
 }
 template<class DB> Matrix<DB> operator^(const Matrix<DB> &a,int n)
@@ -3197,11 +3202,11 @@ template <class DB> Polynomial<DB> PolyFit(std::function<DB(DB)> f,const vector<
 }
 
 //常微分方程
-template<class DO,class DP> DO Iteration(const DP &phi,const vector<DO> &initial,DO x,int n)
+template<class DS,class DO,class DP> DO Iteration(const DP &phi,const pair<DS,DO> &initial,DS x,int n)
 {
-    DO h= (x - initial[0]) / n;//步长
-    DO xk = initial[0];
-    DO yk= initial[1];
+    DS h= (x - get<0>(initial))/n;//步长
+    DS xk = get<0>(initial);
+    DO yk= get<1>(initial);
     for (int i = 0; i < n;++i)
     {
         phi(xk, yk, h);
@@ -3209,25 +3214,25 @@ template<class DO,class DP> DO Iteration(const DP &phi,const vector<DO> &initial
     }
     return yk;
 }
-template<class DO> DO RKSolve(std::function<DO(DO,DO)> f,const vector<DO>& initial,DO x,int n)
+template<class DS,class DO> DO RKSolve(std::function<DO(DS,DO)> f,const pair<DS,DO>& initial,DS x,int n)
 {
-    auto phi = [=](DO &xk, DO &yk, DO &h) {
-            DO halfh = h / 2;
-            DO xk_plus_halfh = xk + halfh;
+    auto phi = [=](DS &xk, DO &yk, DS &h) {
+            DS halfh = h / 2.0;
+            DS xk_plus_halfh = xk + halfh;
             DO k1=f(xk,yk);
             DO k2 =f(xk_plus_halfh,yk+halfh*k1);
             DO k3 =f(xk_plus_halfh,yk+halfh*k2);
             DO k4=f(xk+h,yk+h*k3);
-            yk = yk + h / 6 * (k1 + 2 * k2 + 2 * k3 + k4);
+            yk = yk + h / 6.0 * (k1 + 2.0 * k2 + 2.0 * k3 + k4);
         };
     return Iteration(phi, initial, x, n);
 }
-template<class DO,class DP,class DF> 
-DO LinearMultiStep(const DP &phi,const DF &f,const vector<DO> &initial,DO x,int n,int startstep)
+template<class DS,class DO,class DP,class DF> 
+DO LinearMultiStep(const DP &phi,const DF &f,const pair<DS,DO> &initial,DS x,int n,int startstep)
 {
-    DO h = (x - initial[0])/n;
-    std::deque<DO> xk={initial[0]};
-    std::deque<DO> yk={initial[1]};
+    DS h = (x - get<0>(initial))/n;
+    std::deque<DS> xk={get<0>(initial)};
+    std::deque<DO> yk={get<1>(initial)};
     std::deque<DO> fk={f(xk[0],yk[0])};
     for (int i =1; i<startstep;++i)
     {
@@ -3247,19 +3252,19 @@ DO LinearMultiStep(const DP &phi,const DF &f,const vector<DO> &initial,DO x,int 
     }
     return yk.back();
 }
-template<class DO> DO DSolve(std::function<DO(DO,DO)> f,const vector<DO>& initial,DO x,string str)
+template<class DS,class DO> DO DSolve(std::function<DO(DS,DO)> f,const pair<DS,DO>& initial,DS x,string str)
 {
     if(str=="Euler"|| str=="forward Euler" || str=="explicit Euler")
     {
-        auto phi = [=](DO &xk, DO &yk, DO &h) 
+        auto phi = [=](DS &xk, DO &yk, DS &h) 
         {   yk = yk + h * f(xk, yk);
         };
         return Iteration(phi, initial, x, 100);
     }
     if(str=="backward Euler" || str=="implicit Euler")
     {
-        auto phi = [=](DO &xk, DO &yk, DO &h) {
-            DO x_plus_h = x + h;
+        auto phi = [=](DS &xk, DO &yk, DS &h) {
+            DS x_plus_h = x + h;
             DO y0=yk+h*f(xk,yk);
             DO y1=yk+h*f(x_plus_h,y0);
             yk = yk + h * f(x_plus_h, y1);
@@ -3268,10 +3273,10 @@ template<class DO> DO DSolve(std::function<DO(DO,DO)> f,const vector<DO>& initia
     }
     if(str=="trapz" || str=="trapezoidal")
     {
-        auto phi = [=](DO &xk, DO &yk, DO &h) {
+        auto phi = [=](DS &xk, DO &yk, DS &h) {
             DO fk=f(xk,yk);
-            DO halfh = h / 2;
-            DO x_plus_h = xk + h;
+            DS halfh = h / 2.0;
+            DS x_plus_h = xk + h;
             DO y0 = yk + h * fk;
             DO y1=yk+halfh*(fk+f(x_plus_h,y0));
             yk = yk + halfh * (fk + f(x_plus_h, y1));
@@ -3280,17 +3285,17 @@ template<class DO> DO DSolve(std::function<DO(DO,DO)> f,const vector<DO>& initia
     }
     if(str=="modified Euler")
     {
-        auto phi = [=](DO &xk, DO &yk, DO &h) {
+        auto phi = [=](DS &xk, DO &yk, DS &h) {
             DO k1=f(xk,yk);
             DO k2=f(xk+h,yk+h*k1);
-            yk=yk+h/2*(k1+k2);
+            yk=yk+h/2.0*(k1+k2);
         };
         return Iteration(phi, initial, x, 100);
     }
     if(str=="midpoint")
     {
-        auto phi = [=](DO &xk, DO &yk, DO &h) {
-            DO halfh = h / 2;
+        auto phi = [=](DS &xk, DO &yk, DS &h) {
+            DS halfh = h / 2.0;
             DO k1=f(xk,yk);
             DO k2=f(xk+halfh,yk+halfh*k1);
             yk=yk+h*k2;
@@ -3303,36 +3308,36 @@ template<class DO> DO DSolve(std::function<DO(DO,DO)> f,const vector<DO>& initia
     }
     if(str=="Adams")
     {
-        auto phi = [=](deque<DO> &xk, deque<DO> &yk, deque<DO> &fk, DO &h,DO &y0adpt) {
-            yk.push_back(yk[3]+h/24*(55*fk[3]-59*fk[2]+37*fk[1]-9*fk[0]));
+        auto phi = [=](deque<DS> &xk, deque<DO> &yk, deque<DO> &fk, DS &h,DO &y0adpt) {
+            yk.push_back(yk[3]+h/24.0*(55.0*fk[3]-59.0*fk[2]+37.0*fk[1]-9.0*fk[0]));
         };
         return LinearMultiStep(phi, f, initial, x, 100, 4);
     }
     if(str=="Milne")
     {
-        auto phi = [=](deque<DO> &xk, deque<DO> &yk, deque<DO> &fk, DO &h,DO &y0adpt) {
-            yk.push_back(yk[0]+4*h/3*(2*fk[3]-fk[2]+2*fk[1]));
+        auto phi = [=](deque<DS> &xk, deque<DO> &yk, deque<DO> &fk, DS &h,DO &y0adpt) {
+            yk.push_back(yk[0]+4.0*h/3.0*(2.0*fk[3]-fk[2]+2.0*fk[1]));
         };
         return LinearMultiStep(phi, f, initial, x, 100, 4);
     }
     if(str=="adaptive Adams")
     {
-        auto phi = [=](deque<DO> &xk, deque<DO> &yk, deque<DO> &fk, DO &h,DO &y0adpt) {
-            DO y0=yk[3]+h/24*(55*fk[3]-59*fk[2]+37*fk[1]-9*fk[0]);
-            DO y1 = y0 + 251 * (yk[3] - y0adpt)/270;
-            DO y2 = yk[3] + h / 24 * (9 * f(xk[3] + h, y1) + 19 * fk[3] - 5 * fk[2] + fk[1]);
-            yk.push_back(y2-19*(y2-y0)/270);
+        auto phi = [=](deque<DS> &xk, deque<DO> &yk, deque<DO> &fk, DS &h,DO &y0adpt) {
+            DO y0=yk[3]+h/24.0*(55.0*fk[3]-59.0*fk[2]+37.0*fk[1]-9.0*fk[0]);
+            DO y1 = y0 + 251.0 * (yk[3] - y0adpt)/270.0;
+            DO y2 = yk[3] + h / 24.0 * (9.0 * f(xk[3] + h, y1) + 19.0 * fk[3] - 5.0* fk[2] + fk[1]);
+            yk.push_back(y2-19.0*(y2-y0)/270.0);
             y0adpt = y0;
         };
         return LinearMultiStep(phi, f, initial, x, 100, 4);
     }
     if(str=="adaptive Milne-Hamming")
     {
-        auto phi = [=](deque<DO> &xk, deque<DO> &yk, deque<DO> &fk, DO &h,DO &y0adpt) {
-            DO y0=yk[0]+4*h/3*(2*fk[3]-fk[2]+2*fk[1]);
-            DO y1=y0 + 112*(yk[3]-y0adpt)/121;
-            DO y2 = (9 * yk[3] - yk[1]) / 8 + 3 * h / 8 * (f(xk[3] + h, y1)+ 2 * fk[3] - fk[2]);
-            yk.push_back(y2 - 9 * (y2 - y0) / 121);
+        auto phi = [=](deque<DS> &xk, deque<DO> &yk, deque<DO> &fk, DS &h,DO &y0adpt) {
+            DO y0=yk[0]+4.0*h/3.0*(2.0*fk[3]-fk[2]+2.0*fk[1]);
+            DO y1=y0 + 112.0*(yk[3]-y0adpt)/121.0;
+            DO y2 = (9.0 * yk[3] - yk[1]) / 8.0 + 3.0 * h / 8.0 * (f(xk[3] + h, y1)+ 2.0 * fk[3] - fk[2]);
+            yk.push_back(y2 - 9.0 * (y2 - y0) / 121.0);
             y0adpt = y0;
         };
         return LinearMultiStep(phi, f, initial, x, 100, 4);
@@ -3340,17 +3345,17 @@ template<class DO> DO DSolve(std::function<DO(DO,DO)> f,const vector<DO>& initia
     cerr<<"错误：没有定义该方法"<<'\n';
     return x;
 }
-template<class DO> DO DSolve(std::function<DO(DO,DO)> f,const vector<DO>& initial,DO x)
+template<class DS,class DO> DO DSolve(std::function<DO(DS,DO)> f,const pair<DS,DO>& initial,DS x)
 {
     return DSolve(f, initial, x, "adaptive Milne-Hamming");
 }
-template<class DO> std::function<DO(DO)> DSolve(std::function<DO(DO,DO)> f,const vector<DO> &initial,string str)
+template<class DS,class DO> std::function<DO(DS)> DSolve(std::function<DO(DS,DO)> f,const pair<DS,DO> &initial,string str)
 {
-    return [=](DO x) { return DSolve(f, initial, x, str); };
+    return [=](DS x) { return DSolve(f, initial, x, str); };
 }
-template<class DO> std::function<DO(DO)> DSolve(std::function<DO(DO,DO)> f,const vector<DO> &initial)
+template<class DS,class DO> std::function<DO(DS)> DSolve(std::function<DO(DS,DO)> f,const pair<DS,DO> &initial)
 {
-    return [=](DO x) { return DSolve(f, initial, x); };
+    return [=](DS x) { return DSolve(f, initial, x); };
 }
 
 }
