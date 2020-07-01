@@ -218,7 +218,9 @@ public:
     template<class DB> friend int ColumnSize(const Matrix<DB>&);
     template <class DB> friend void Resize(Matrix<DB> &,int,int);
     template <class DB> friend Matrix<DB> SubRow(const Matrix<DB> &, int, int);
+    template <class DB> friend Matrix<DB> SubColumn(const Matrix<DB> &, int, int);
     template <class DB> friend Matrix<DB> SubMatrix(const Matrix<DB> &, int, int, int, int);
+    template <class DB> friend void ReplaceMatrix(Matrix<DB> &, int, int, int, int, const Matrix<DB> &);
     template <class DB> friend void DeleteRow(Matrix<DB> &,int n);
     template <class DB> friend void ReplaceRow(Matrix<DB> &, int n,const Matrix<DB>&);
     //解线性方程组
@@ -1325,6 +1327,21 @@ template<class DB> Matrix<DB> DiagonalMatrix(const vector<DB> &d)
         A.value[i][i]=d[i];
     return A;
 }
+template<class DB> Matrix<DB> Eye(int n)
+{
+    if(n<0)
+    {
+        cerr << "错误：矩阵的规模必须非负。" << '\n';
+        Matrix<DB> e(1, 1);
+        return e;
+    }
+    Matrix<DB> e(n, n);
+    for (int i = 0; i < n;++i)
+    {
+        e.value[i][i] = 1;
+    }
+    return e;
+}
 template<class DB> int RowSize(const Matrix<DB> &a)
 {
     return a.row_num;
@@ -1354,6 +1371,14 @@ template <class DB> Matrix<DB> SubRow(const Matrix<DB> &A, int a, int b)
         r.value[i-a]=A.value[i];
     return r;
 }
+template <class DB> Matrix<DB> SubColumn(const Matrix<DB> &A, int a, int b)
+{
+    Matrix<DB> r(A.row_num,b-a+1);
+    for(int i=0;i<A.row_num;++i)
+        for(int j=a;j<=b;++j)
+            r.value[i][j-a]=A.value[i][j];
+    return r;
+}
 template <class DB> Matrix<DB> SubMatrix(const Matrix<DB> &A, int lur, int luc, int rdr, int rdc)
 {
     //左上点的坐标：(lur,luc)，右下点的坐标：(rdr,rdc)
@@ -1366,6 +1391,14 @@ template <class DB> Matrix<DB> SubMatrix(const Matrix<DB> &A, int lur, int luc, 
         }
     }
     return r;
+}
+template <class DB> void ReplaceMatrix(Matrix<DB> &A,int lur,int luc,int rdr,int rdc,const Matrix<DB> &R)
+{
+    if(R.row_num!=rdr-lur+1 || R.column_num!=rdc-luc+1)
+        cerr<<"错误：替换矩阵的规格必须与指定的区域规格相同"<<'\n';
+    for(int i=lur;i<=rdr;++i)
+        for(int j=luc;j<=rdc;++j)
+            A.value[i][j] = R.value[i - lur][j - luc];
 }
 template <class DB> void DeleteRow(Matrix<DB> &A,int n)
 {
@@ -1775,6 +1808,152 @@ template <class DB> vector<Matrix<DB>> CholeskyDecomposition(const Matrix<DB> &A
     const Matrix<DB> &L=CholeskyCompactDecomposition(A);
     return {L,Transpose(L)};
 }
+template<class DB> Matrix<DB> Givens(const Matrix<DB> &x,int i,int j,int c)
+{
+    int n = RowSize(x);
+    Matrix<DB> G=Eye<DB>(n);
+    const DB length=Sqrt(Get(x,i,c)*Get(x,i,c)+Get(x,j,c)*Get(x,j,c));
+    if(length<1e-14)
+        return G;
+    G(i,i)=Get(x,i,c)/length;
+    G(i,j)=Get(x,j,c)/length;
+    G(j,j)=G(i,i);
+    G(j,i)=DB(0)-G(i,j);
+    return G;
+}
+template<class DB> Matrix<DB> Householder(const Matrix<DB> &x)
+{
+    int n=RowSize(x);
+    Matrix<DB> e1(n, 1);
+    e1(0, 0) = 1;
+    const DB alpha = VectorNorm(x, 2);
+    if(alpha<1e-14)
+        return Eye<DB>(n);
+    const Matrix<DB> &u = x - alpha * e1;
+    const Matrix<DB> &v=u/VectorNorm(u,2);
+    return Eye<DB>(n)-DB(2)*v*Transpose(v);
+}
+template<class DB> Matrix<DB> Hessenberg(const Matrix<DB> &A)
+{
+    int n=RowSize(A);
+    Matrix<DB> H = A;
+    for (int i = 1; i < n - 1;++i)
+    {
+        const Matrix<DB> &x=SubMatrix(H,i,i-1,n-1,i-1);
+        const Matrix<DB> &Reflector=Householder(x);
+        Matrix<DB> P(n,n);
+        ReplaceMatrix(P,0,0,i-1,i-1,Eye<DB>(i));
+        ReplaceMatrix(P,i,i,n - 1, n - 1, Reflector);
+        H = P*H*P;
+    }
+    return H;
+}
+template <class DB> vector<Matrix<DB>> QRDecomposition(const Matrix<DB> &A,string str)
+{
+    if(RowSize(A)!=ColumnSize(A))
+    {
+        cerr << "错误：只有方阵才能进行QR分解。" << '\n';
+        return {A,A};
+    }
+    if(str=="Householder")
+    {
+        int n = RowSize(A);
+        Matrix<DB> Q=Eye<DB>(n);
+        Matrix<DB> R = A;
+        for (int i = 0; i < n-1;++i)
+        {
+            const Matrix<DB> &x = SubMatrix(R, i, i,n-1,i);
+            const Matrix<DB> &Qpart = Householder(x);
+            Matrix<DB> Qcur(n, n);
+            ReplaceMatrix(Qcur,0,0,i-1,i-1,Eye<DB>(i));
+            ReplaceMatrix(Qcur, i, i, n - 1, n - 1, Qpart);
+            Q = Qcur*Q;
+            R = Qcur*R;
+        }
+        return {Transpose(Q), R};
+    }
+    if(str=="Givens")
+    {
+        int n=RowSize(A);
+        Matrix<DB> Q=Eye<DB>(n);
+        Matrix<DB> R = A;
+        for (int j = 0; j < n - 1;++j)
+        {
+            for(int i=n-1;i>j;--i)
+            {
+                if(Abs(R(i,j))>1e-10)
+                {
+                    const Matrix<DB> &G = Givens(R, j, i,j);
+                    R=G*R;
+                    Q=G*Q;
+                }  
+            }
+        }
+        return {Transpose(Q), R};
+    }
+    cerr<<"错误：未定义该方法"<<'\n';
+    return {A,A};
+}
+template <class DB> vector<Matrix<DB>> QRDecomposition(const Matrix<DB> &A)
+{
+    return QRDecomposition(A,"Householder");
+}
+template <class DB> vector<Matrix<DB>> QRForHessenberg(const Matrix<DB> &A)
+{
+    int n=RowSize(A);
+    Matrix<DB> Q=Eye<DB>(n);
+    Matrix<DB> R = A;
+    for (int j = 0; j < n - 1;++j)
+    {
+        const Matrix<DB> &G = Givens(R, j, j+1,j);
+        R=G*R;
+        Q=G*Q;
+    }
+    return {Transpose(Q), R};
+}
+template<class DB> vector<Matrix<DB>> Decomposition(const Matrix<DB> &A,string str)
+{
+    if(str=="LU")
+        return LUDecomposition(A);
+    if(str=="LUP")
+        return LUPDecomposition(A);
+    if(str=="Cholesky")
+        return CholeskyDecomposition(A);
+    if(str=="QR")
+        return QRDecomposition(A);
+    cerr<<"错误：没有定义该方法"<<'\n';
+    return {A};
+}
+template <class DB> vector<DB> EigenValue(const Matrix<DB> &A)
+{
+    const int n=RowSize(A);
+    const int times =70;
+    const DB eps =n*1e-5;
+    int count = 0;
+    Matrix<DB> Acur=Hessenberg(A);
+    vector<DB> r(n);
+    for(int j=0;j<n;++j)
+        r[j]=Get(A,j,j);
+    DB s = 0;
+    do
+    {
+        vector<Matrix<DB>> QR = QRForHessenberg(Acur);
+        Acur=QR[1]*QR[0];
+        s = 0;
+        for(int j=0;j<n;++j)
+            s += Abs(r[j] - Get(Acur, j, j));
+        for(int j=0;j<n;++j)
+            r[j]=Get(Acur,j,j);
+        ++count;
+    }while (s > eps && count < times);
+    /*if (count >= times)
+        cerr<< "警告：计算特征值时，指定次数内未达到预期精度" << '\n';*/
+    return r;
+}
+template <class DB> Matrix<DB> EigenValueMatrix(const Matrix<DB> &A)
+{
+    return DiagonalMatrix(EigenValue(A));
+}
 template <class DB> vector<Matrix<DB>> JacobiIterationMatrix(const Matrix<DB> &A,const Matrix<DB>&b)
 {
     int n = A.row_num;
@@ -2150,21 +2329,6 @@ template<class DB> Matrix<DB> LinearSolve(const Matrix<DB> &a,const Matrix<DB> &
 }
 
 //求逆
-template<class DB> Matrix<DB> Eye(int n)
-{
-    if(n<=0)
-    {
-        cerr << "错误：矩阵的规模必须是正数。" << '\n';
-        Matrix<DB> e(1, 1);
-        return e;
-    }
-    Matrix<DB> e(n, n);
-    for (int i = 0; i < n;++i)
-    {
-        e.value[i][i] = 1;
-    }
-    return e;
-}
 template<class DB> Matrix<DB> Inverse(const Matrix<DB> &a)
 {
     if(a.row_num!=a.column_num)
