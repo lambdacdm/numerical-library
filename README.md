@@ -1,13 +1,17 @@
 # numerical-library
 ## Overview 概况
 这是一个C++实现的简单的数值库，集合了基础的矩阵运算、方程求解、 插值拟合、数值微积分、微分方程求解等操作。
+## Development Environment 开发环境
+C++14 gcc10.1.1
 ## Usage 使用方法
 只需将相关头文件、源文件放在一起编译运行即可。
-如果使用gcc，则编译命令为
+
+如果使用gcc，请至少使用gcc 6.1版本。gcc下编译命令为
 ```
-gcc computational.cpp main.cpp
+g++ -std=c++14 computational.cpp main.cpp
 ```
 至于具体如何使用各函数，请参阅参考文档。main.cpp是示例的用户调用代码，也可供参考。
+
 如果对性能有所要求，强烈建议编译时开启优化选项。
 ## Algorithms Used 所用算法
 对于下面列出的各种功能，均使用多种算法予以实现。下面列出的算法只是相应功能调用时的默认算法。
@@ -15,6 +19,8 @@ gcc computational.cpp main.cpp
 * 高精度除法 —— 牛顿迭代法
 * 多项式乘法 —— FFT
 * 多项式求值 —— 秦九韶算法
+* QR分解 —— Householder变换
+* 特征值 —— QR分解迭代
 * 线性方程组求解 —— LUP分解
 * 代数方程(组)求解 —— 牛顿迭代法
 * 插值 —— 分段线性插值
@@ -24,9 +30,9 @@ gcc computational.cpp main.cpp
 * 定积分 —— Romberg算法
 * 求导数 —— 中心差商法
 * 常微分方程(组)求解 —— 预测-校正的Milne-Hamming公式
-## Development Environment 开发环境
-C++14 gcc10.1.1
-## Change Log 变更日志
-目前已发布的最新版本是v0.7.2，详见release
-* v0.7.1 首个发布的版本
+## Change Log 更新日志
+目前已发布的最新版本是v0.7.3，详见release
+* v0.7.3 加入QR分解与求特征值
 * v0.7.2 加入常微分方程组求解与代数方程组求解
+* v0.7.1 首个发布的版本
+
