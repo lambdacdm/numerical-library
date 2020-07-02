@@ -212,7 +212,7 @@ public:
     template <class DB> friend Matrix<DB> Act(std::function<DB(DB, DB)>, const Matrix<DB> &, const Matrix<DB> &);
     template <class DB> friend Matrix<DB> Table(std::function<DB(DB)>, const vector<DB>&);
     template<class DB> friend Matrix<DB> Transpose(const Matrix<DB>&); 
-    template<class DB> friend Matrix<DB> Diagonal(const Matrix<DB>&);
+    template<class DB> friend vector<DB> Diagonal(const Matrix<DB>&);
     template <class DB> friend Matrix<DB> DiagonalMatrix(const vector<DB> &);
     template<class DB> friend int RowSize(const Matrix<DB>&);
     template<class DB> friend int ColumnSize(const Matrix<DB>&);
@@ -1306,17 +1306,12 @@ template<class DB> Matrix<DB> Transpose(const Matrix<DB> &a)
     }
     return T;
 }
-template<class DB> Matrix<DB> Diagonal(const Matrix<DB> &a)
+template<class DB> vector<DB> Diagonal(const Matrix<DB> &a)
 {
-    if(a.row_num!=a.column_num)
-    {
-        cerr << "错误：非方阵不能取其对角元素" << '\n';
-        return a;
-    }
-    int n = a.row_num;
-    Matrix<DB> d(n,1);
+    int n = a.row_num<a.column_num?a.row_num:a.column_num;
+    vector<DB> d(n);
     for (int i = 0; i < n;++i)
-        d.value[i][0] = a.value[i][i];
+        d[i]=a.value[i][i];
     return d;
 }
 template<class DB> Matrix<DB> DiagonalMatrix(const vector<DB> &d)
@@ -1811,10 +1806,10 @@ template <class DB> vector<Matrix<DB>> CholeskyDecomposition(const Matrix<DB> &A
 template<class DB> Matrix<DB> Givens(const Matrix<DB> &x,int i,int j,int c)
 {
     int n = RowSize(x);
-    Matrix<DB> G=Eye<DB>(n);
     const DB length=Sqrt(Get(x,i,c)*Get(x,i,c)+Get(x,j,c)*Get(x,j,c));
     if(length<1e-14)
-        return G;
+        return Eye<DB>(n);
+    Matrix<DB> G=Eye<DB>(n);
     G(i,i)=Get(x,i,c)/length;
     G(i,j)=Get(x,j,c)/length;
     G(j,j)=G(i,i);
@@ -1824,19 +1819,23 @@ template<class DB> Matrix<DB> Givens(const Matrix<DB> &x,int i,int j,int c)
 template<class DB> Matrix<DB> Householder(const Matrix<DB> &x)
 {
     int n=RowSize(x);
-    Matrix<DB> e1(n, 1);
-    e1(0, 0) = 1;
     const DB alpha = VectorNorm(x, 2);
     if(alpha<1e-14)
         return Eye<DB>(n);
+    Matrix<DB> e1(n, 1);
+    e1(0, 0) = 1;
     const Matrix<DB> &u = x - alpha * e1;
+    DB beta=VectorNorm(u,2);
+    if(beta<1e-14)
+        return Eye<DB>(n);
     const Matrix<DB> &v=u/VectorNorm(u,2);
     return Eye<DB>(n)-DB(2)*v*Transpose(v);
 }
-template<class DB> Matrix<DB> Hessenberg(const Matrix<DB> &A)
+template<class DB> void _HessenbergControl(const Matrix<DB> &A,Matrix<DB> &H,Matrix<DB> &Q,bool open)
 {
     int n=RowSize(A);
-    Matrix<DB> H = A;
+    H = A;
+    if(open) Q=Eye<DB>(n);
     for (int i = 1; i < n - 1;++i)
     {
         const Matrix<DB> &x=SubMatrix(H,i,i-1,n-1,i-1);
@@ -1845,7 +1844,22 @@ template<class DB> Matrix<DB> Hessenberg(const Matrix<DB> &A)
         ReplaceMatrix(P,0,0,i-1,i-1,Eye<DB>(i));
         ReplaceMatrix(P,i,i,n - 1, n - 1, Reflector);
         H = P*H*P;
+        if(open) Q =P*Q;
     }
+    for(int i=2;i<n;++i)
+        for(int j=0;j<i-1;++j)
+            H(i,j)=0;
+}
+template<class DB> vector<Matrix<DB>> HessenbergDecomposition(const Matrix<DB> &A)
+{
+    Matrix<DB> H, Q;
+    _HessenbergControl(A,H,Q,true);
+    return {Q, H, Q};
+}
+template<class DB> Matrix<DB> Hessenberg(const Matrix<DB> &A)
+{
+    Matrix<DB> H, Q;
+    _HessenbergControl(A,H,Q,false);
     return H;
 }
 template <class DB> vector<Matrix<DB>> QRDecomposition(const Matrix<DB> &A,string str)
@@ -1870,6 +1884,9 @@ template <class DB> vector<Matrix<DB>> QRDecomposition(const Matrix<DB> &A,strin
             Q = Qcur*Q;
             R = Qcur*R;
         }
+        for (int i = 1; i < n;++i)
+            for(int j=0;j<i;++j)
+                R(i, j) = 0;
         return {Transpose(Q), R};
     }
     if(str=="Givens")
@@ -1889,6 +1906,9 @@ template <class DB> vector<Matrix<DB>> QRDecomposition(const Matrix<DB> &A,strin
                 }  
             }
         }
+        for (int i = 1; i < n;++i)
+            for(int j=0;j<i;++j)
+                R(i, j) = 0;
         return {Transpose(Q), R};
     }
     cerr<<"错误：未定义该方法"<<'\n';
@@ -1911,6 +1931,55 @@ template <class DB> vector<Matrix<DB>> QRForHessenberg(const Matrix<DB> &A)
     }
     return {Transpose(Q), R};
 }
+template <class DB> void _SchurControl(const Matrix<DB> &A,Matrix<DB> &Acur,Matrix<DB> &EV,bool open)
+{
+    const int n=RowSize(A);
+    const int times=20*std::log2(n+1);
+    const DB eps=1e-6;
+    int count = 0;
+    DB s = 0;
+    vector<DB> r(n);
+    if(open)
+    {
+        const auto &hlist = HessenbergDecomposition(A);
+        Acur = hlist[1];
+        EV = hlist[0];
+    }
+    else
+        Acur = Hessenberg(A);
+    do
+    {
+        for(int i=0;i<n;++i)
+            r[i] = Get(Acur, i, i);
+        const vector<Matrix<DB>> &QR = QRForHessenberg(Acur);
+        Acur=QR[1]*QR[0];
+        if(open) EV = EV*QR[0];
+        s = 0;
+        for(int i=0;i<n;++i)
+            s=std::max(s,Abs(r[i] - Get(Acur, i, i)));
+        ++count;
+    }while (count < times && s>eps);
+}
+template <class DB> vector<Matrix<DB>> SchurDecomposition(const Matrix<DB> &A)
+{
+    Matrix<DB> Acur,EV;
+    _SchurControl(A,Acur,EV,true);
+    return {EV, Acur, Transpose(EV)};
+}
+template <class DB> Matrix<DB> SchurForm(const Matrix<DB> &A)
+{
+    Matrix<DB> Acur,EV;
+    _SchurControl(A,Acur,EV,false);
+    return Acur;
+}
+template <class DB> vector<DB> EigenValue(const Matrix<DB> &A)
+{
+    return Diagonal(SchurForm(A));
+}
+template<class DB> Matrix<DB> EigenValueMatrix(const Matrix<DB> &A)
+{
+    return DiagonalMatrix(EigenValue(A));
+}
 template<class DB> vector<Matrix<DB>> Decomposition(const Matrix<DB> &A,string str)
 {
     if(str=="LU")
@@ -1921,38 +1990,10 @@ template<class DB> vector<Matrix<DB>> Decomposition(const Matrix<DB> &A,string s
         return CholeskyDecomposition(A);
     if(str=="QR")
         return QRDecomposition(A);
+    if(str=="Schur")
+        return SchurDecomposition(A);
     cerr<<"错误：没有定义该方法"<<'\n';
     return {A};
-}
-template <class DB> vector<DB> EigenValue(const Matrix<DB> &A)
-{
-    const int n=RowSize(A);
-    const int times =70;
-    const DB eps =n*1e-5;
-    int count = 0;
-    Matrix<DB> Acur=Hessenberg(A);
-    vector<DB> r(n);
-    for(int j=0;j<n;++j)
-        r[j]=Get(A,j,j);
-    DB s = 0;
-    do
-    {
-        vector<Matrix<DB>> QR = QRForHessenberg(Acur);
-        Acur=QR[1]*QR[0];
-        s = 0;
-        for(int j=0;j<n;++j)
-            s += Abs(r[j] - Get(Acur, j, j));
-        for(int j=0;j<n;++j)
-            r[j]=Get(Acur,j,j);
-        ++count;
-    }while (s > eps && count < times);
-    /*if (count >= times)
-        cerr<< "警告：计算特征值时，指定次数内未达到预期精度" << '\n';*/
-    return r;
-}
-template <class DB> Matrix<DB> EigenValueMatrix(const Matrix<DB> &A)
-{
-    return DiagonalMatrix(EigenValue(A));
 }
 template <class DB> vector<Matrix<DB>> JacobiIterationMatrix(const Matrix<DB> &A,const Matrix<DB>&b)
 {
