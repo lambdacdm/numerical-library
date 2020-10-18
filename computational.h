@@ -11,7 +11,7 @@
 #include<algorithm>
 #include<deque>
 #include<thread>
-#include<execution>
+//#include<execution>
 #include<utility>
 using std::cerr;
 using std::complex;
@@ -24,13 +24,14 @@ using std::pair;
 using std::ref;
 using std::string;
 using std::swap;
-using std::thread;
+//using std::thread;
 using std::vector;
 
 namespace malg{
 
 //-----常量部分-----
 template<class DC> const DC Pi = 3.1415926535897932;
+const double Machine_Epsilon = pow(2, -52);
 template <class DC>
 const std::function<DC(DC)> Identity =[](DC x) { return x; };
 template<class DC>
@@ -181,6 +182,7 @@ public:
     Matrix(int,int);
     Matrix(const vector<vector<DM>>&, int, int);
     Matrix(const vector<vector<DM>>&);
+    Matrix(const vector<vector<DM>> &, const char[]);
 
     Matrix<DM> &operator=(const Matrix<DM> &);
     DM &operator()(int,int);
@@ -1025,6 +1027,12 @@ template<class DB> Matrix<DB>::Matrix (const vector<vector<DB>> &a)
     column_num = a[0].size();
     value = a;
 }
+template<class DB> Matrix<DB>::Matrix (const vector<vector<DB>> &a, const char [])
+{
+    row_num = a.size();
+    column_num = a[0].size();
+    value = a;
+}
 template<class DB> Matrix<DB>& Matrix<DB>::operator=(const Matrix<DB> &b)
 {
     row_num = b.row_num;
@@ -1423,7 +1431,7 @@ template<class DB> void _MatProd(const Matrix<DB> &A,const Matrix<DB> &B,Matrix<
 {
     C = A * B;
 }
-template<class DB> Matrix<DB> ThreadMatProd(const Matrix<DB> &A,const Matrix<DB> &B)
+/*template<class DB> Matrix<DB> ThreadMatProd(const Matrix<DB> &A,const Matrix<DB> &B)
 {
     int p=RowSize(A);
     int q=RowSize(B);
@@ -1452,8 +1460,33 @@ template<class DB> Matrix<DB> ThreadMatProd(const Matrix<DB> &A,const Matrix<DB>
     t1.join();t2.join();t3.join();t4.join();
     t5.join();t6.join();t7.join();t8.join();
     return ColumnCat(RowCat(LULU+RULD,LURU+RURD),RowCat(LDLU+RDLD,LDRU+RDRD));
-}
+}*/
 
+//迹、向量范数
+template <class DB> DB Trace(const Matrix<DB> &a)
+{
+    if(a.row_num!=a.column_num)
+    {
+        cerr << "只有方阵才有迹！" << '\n';
+        return 0;
+    }
+    DB s = 0;
+    for (int i = 0; i < a.row_num;++i)
+    {
+        s += a.value[i][i];
+    }
+    return s;
+}
+template <class DB> DB VectorNorm(const Matrix<DB> &a,double p)
+{
+    int n=RowSize(a);
+    DB s = 0;
+    for(int i=0;i<n;++i)
+    {
+        s += pow(Abs(Get(a, i, 0)), p);
+    }
+    return pow(s, DB(1) / p);
+}
 //解线性方程组
 template<class DB> Matrix<DB> RowCat(const Matrix<DB> &a,const Matrix<DB> &b)
 {
@@ -1525,6 +1558,47 @@ template <class DB> Matrix<DB> USplit(const Matrix<DB> &A)
         }
     }
     return U;
+}
+template<class DB> Matrix<DB> LSolve(const Matrix<DB> &L,const Matrix<DB> &b)
+{
+    int n = L.row_num;
+    int m = b.column_num;
+    Matrix<DB> y(n, m);
+    DB s = 0;
+    for (int j = 0; j < m;++j)
+    {
+        for (int i = 0; i < n;++i)
+        {
+            s = 0;
+            for (int k = 0; k < i;++k)
+            {
+                s += L.value[i][k] *y.value[k][j];
+            }
+            y.value[i][j] = (b.value[i][j] - s)/L.value[i][i];
+        }
+        
+    }
+    return y;
+}
+template<class DB> Matrix<DB> USolve(const Matrix<DB> &U,const Matrix<DB> &y)
+{
+    int n = U.row_num;
+    int m = y.column_num;
+    Matrix<DB> x(n,m);
+    DB s = 0;
+    for (int j = 0; j < m;++j)
+    {
+        for (int i = n-1; i>=0;--i)
+        {
+            s = 0;
+            for (int k =i+1 ; k <n;++k)
+            {
+                s += U.value[i][k] * x.value[k][j];
+            }
+            x.value[i][j] = (y.value[i][j] - s) / U.value[i][i];
+        }
+    }
+    return x;
 }
 template <class DB> vector<Matrix<DB>> GaussianElimination(const Matrix<DB> &A, const Matrix<DB> &b)
 {
@@ -1660,6 +1734,43 @@ template <class DB> Matrix<DB> LUPCompactDecomposition(const Matrix<DB> &A, vect
     }
     rank = n;
     return LU;
+}
+template<class DB> vector<Matrix<DB>> LUDivideConquer(const Matrix<DB> &A,unsigned n,const Matrix<DB> &Id)
+{
+    if(n==0)
+    {
+        cerr << "错误：进行LU分解时，矩阵的大小至少是1阶的" <<"\n";
+        return {A, A};
+    }
+    if(n==1)
+        return {Id, A};
+    unsigned halfn = n >> 1;
+    const auto &A11 = SubMatrix(A, 0, 0, halfn - 1, halfn - 1);
+    const auto &A12 = SubMatrix(A, 0, halfn, halfn-1, n - 1);
+    const auto &A21 = SubMatrix(A, halfn, 0, n - 1, halfn - 1);
+    const auto &A22 = SubMatrix(A, halfn, halfn, n - 1, n - 1);
+    const auto &L11U11 = LUDivideConquer(A11, halfn,Id);
+    const auto &L11=L11U11[0];
+    const auto &U11=L11U11[1];
+    const auto &U12 = LSolve(L11, A12);
+    const auto &L21 = Transpose(LSolve(Transpose(U11), Transpose(A21)));
+    const auto &L22U22 = LUDivideConquer(A22 - L21 * U12,n-halfn,Id);
+    const auto &L22=L22U22[0];
+    const auto &U22=L22U22[1];
+    Matrix<DB> L(n,n);
+    Matrix<DB> U(n,n);
+    ReplaceMatrix(L, 0, 0, halfn - 1, halfn - 1, L11);
+    ReplaceMatrix(L, halfn, 0, n - 1, halfn - 1, L21);
+    ReplaceMatrix(L, halfn, halfn, n - 1, n - 1, L22);
+    ReplaceMatrix(U, 0, 0, halfn - 1, halfn - 1, U11);
+    ReplaceMatrix(U, 0, halfn, halfn - 1, n - 1, U12);
+    ReplaceMatrix(U, halfn, halfn, n - 1, n - 1, U22);
+    return {L, U};
+}
+template<class DB> vector<Matrix<DB>> LUDivideConquer(const Matrix<DB> &A)
+{
+    const Matrix<DB> Id = Matrix<DB>({{DB(1)}}, 1, 1);
+    return LUDivideConquer(A, unsigned(RowSize(A)),Id);
 }
 template <class DB> Matrix<DB> GaussianElimination(const Matrix<DB> &A)
 {
@@ -1868,6 +1979,35 @@ template <class DB> vector<Matrix<DB>> QRDecomposition(const Matrix<DB> &A,strin
     {
         cerr << "错误：只有方阵才能进行QR分解。" << '\n';
         return {A,A};
+    }
+    if(str=="Gram-Schmidt" || str=="modified Gram-Schmidt" || str=="GS")
+    {
+        int n=RowSize(A);
+        Matrix<DB> Q=A;
+        Matrix<DB> R(n,n);
+        for (int j = 0; j < n;++j)
+        {
+            for (int k = 0; k < j;++k)
+            {
+                DB r_kj= DB(0);
+                for (int i = 0; i < n;++i)
+                {
+                    r_kj+= Get(Q, i, k) * Get(Q, i, j);
+                }
+                R(k, j) = r_kj;
+                for (int i = 0; i < n;++i)
+                {
+                    Q(i, j) = Q(i, j) - r_kj * Q(i, k);
+                }
+            }
+            DB r_jj = VectorNorm<DB>(SubColumn(Q, j, j),2.);
+            R(j,j)=r_jj;
+            for(int i=0;i<n;++i)
+            {
+                Q(i, j) = Get(Q, i, j) / r_jj;
+            }
+        }
+        return {Q,R};
     }
     if(str=="Householder")
     {
@@ -2092,47 +2232,6 @@ template <class DB> Matrix<DB> LUPSolve(const Matrix<DB> &LU, const vector<int> 
     }
     return x;
 }
-template<class DB> Matrix<DB> LSolve(const Matrix<DB> &L,const Matrix<DB> &b)
-{
-    int n = L.row_num;
-    int m = b.column_num;
-    Matrix<DB> y(n, m);
-    DB s = 0;
-    for (int j = 0; j < m;++j)
-    {
-        for (int i = 0; i < n;++i)
-        {
-            s = 0;
-            for (int k = 0; k < i;++k)
-            {
-                s += L.value[i][k] *y.value[k][j];
-            }
-            y.value[i][j] = (b.value[i][j] - s)/L.value[i][i];
-        }
-        
-    }
-    return y;
-}
-template<class DB> Matrix<DB> USolve(const Matrix<DB> &U,const Matrix<DB> &y)
-{
-    int n = U.row_num;
-    int m = y.column_num;
-    Matrix<DB> x(n,m);
-    DB s = 0;
-    for (int j = 0; j < m;++j)
-    {
-        for (int i = n-1; i>=0;--i)
-        {
-            s = 0;
-            for (int k =i+1 ; k <n;++k)
-            {
-                s += U.value[i][k] * x.value[k][j];
-            }
-            x.value[i][j] = (y.value[i][j] - s) / U.value[i][i];
-        }
-    }
-    return x;
-}
 template <class DB> Matrix<DB> TridiagonalSolve(const vector<vector<DB>> &T, const Matrix<DB> &f)
 {
     const vector<vector<DB>> &LUC = TridiagonalSeparation(T);
@@ -2281,6 +2380,13 @@ template<class DB> Matrix<DB> LinearSolve(const Matrix<DB> &A,const Matrix<DB> &
         Matrix<DB> L = CholeskyCompactDecomposition(A);
         return USolve(Transpose(L), LSolve(L, b));
     }
+    if(str=="QR")
+    {
+        auto QR=QRDecomposition(A);
+        auto Q=QR[0];
+        auto R=QR[1];
+        return USolve(R, Transpose(Q) * b);
+    }
     if(str=="Jacobi")
     {
         /*vector<Matrix<DB>> Bf = JacobiIterationMatrix(A, b);
@@ -2412,30 +2518,6 @@ template<class DB> Matrix<DB> operator^(const Matrix<DB> &a,int n)
     return b;
 }
 //范数、条件数
-template <class DB> DB Trace(const Matrix<DB> &a)
-{
-    if(a.row_num!=a.column_num)
-    {
-        cerr << "只有方阵才有迹！" << '\n';
-        return 0;
-    }
-    DB s = 0;
-    for (int i = 0; i < a.row_num;++i)
-    {
-        s += a.value[i][i];
-    }
-    return s;
-}
-template <class DB> DB VectorNorm(const Matrix<DB> &a,double p)
-{
-    int n=RowSize(a);
-    DB s = 0;
-    for(int i=0;i<n;++i)
-    {
-        s += pow(Abs(Get(a, i, 0)), p);
-    }
-    return pow(s, DB(1) / p);
-}
 template <class DB> DB Norm(const Matrix<DB> &a, double p)
 {
     if(p==INFINITY)
@@ -3558,14 +3640,14 @@ DO LinearMultiStep(const DP &phi,const DF &f,const pair<DS,DO> &initial,DS x,int
     }
     return yk.back();
 }
-template<class DS,class DO> DO DSolve(std::function<DO(DS,DO)> f,const pair<DS,DO>& initial,DS x,string str)
+template<class DS,class DO> DO DSolve(std::function<DO(DS,DO)> f,const pair<DS,DO>& initial,DS x,int n,string str)
 {
     if(str=="Euler"|| str=="forward Euler" || str=="explicit Euler")
     {
         auto phi = [=](DS &xk, DO &yk, DS &h) 
         {   yk = yk + h * f(xk, yk);
         };
-        return Iteration(phi, initial, x, 100);
+        return Iteration(phi, initial, x, n);
     }
     if(str=="backward Euler" || str=="implicit Euler")
     {
@@ -3575,7 +3657,7 @@ template<class DS,class DO> DO DSolve(std::function<DO(DS,DO)> f,const pair<DS,D
             DO y1=yk+h*f(x_plus_h,y0);
             yk = yk + h * f(x_plus_h, y1);
         };
-        return Iteration(phi, initial, x, 100);
+        return Iteration(phi, initial, x, n);
     }
     if(str=="trapz" || str=="trapezoidal")
     {
@@ -3587,16 +3669,16 @@ template<class DS,class DO> DO DSolve(std::function<DO(DS,DO)> f,const pair<DS,D
             DO y1=yk+halfh*(fk+f(x_plus_h,y0));
             yk = yk + halfh * (fk + f(x_plus_h, y1));
         };
-        return Iteration(phi, initial, x, 100);
+        return Iteration(phi, initial, x, n);
     }
-    if(str=="modified Euler")
+    if(str=="Heun" || str=="imporved Euler")
     {
         auto phi = [=](DS &xk, DO &yk, DS &h) {
             DO k1=f(xk,yk);
             DO k2=f(xk+h,yk+h*k1);
             yk=yk+h/2.0*(k1+k2);
         };
-        return Iteration(phi, initial, x, 100);
+        return Iteration(phi, initial, x, n);
     }
     if(str=="midpoint")
     {
@@ -3606,25 +3688,25 @@ template<class DS,class DO> DO DSolve(std::function<DO(DS,DO)> f,const pair<DS,D
             DO k2=f(xk+halfh,yk+halfh*k1);
             yk=yk+h*k2;
         };
-        return Iteration(phi, initial, x, 100);
+        return Iteration(phi, initial, x, n);
     }
     if(str=="RK4" || str=="Runge-Kutta")
     {
-        return RKSolve(f, initial, x, 100);
+        return RKSolve(f, initial, x, n);
     }
     if(str=="Adams")
     {
         auto phi = [=](deque<DS> &xk, deque<DO> &yk, deque<DO> &fk, DS &h,DO &y0adpt) {
             yk.push_back(yk[3]+h/24.0*(55.0*fk[3]-59.0*fk[2]+37.0*fk[1]-9.0*fk[0]));
         };
-        return LinearMultiStep(phi, f, initial, x, 100, 4);
+        return LinearMultiStep(phi, f, initial, x, n, 4);
     }
     if(str=="Milne")
     {
         auto phi = [=](deque<DS> &xk, deque<DO> &yk, deque<DO> &fk, DS &h,DO &y0adpt) {
             yk.push_back(yk[0]+4.0*h/3.0*(2.0*fk[3]-fk[2]+2.0*fk[1]));
         };
-        return LinearMultiStep(phi, f, initial, x, 100, 4);
+        return LinearMultiStep(phi, f, initial, x, n, 4);
     }
     if(str=="adaptive Adams")
     {
@@ -3635,7 +3717,7 @@ template<class DS,class DO> DO DSolve(std::function<DO(DS,DO)> f,const pair<DS,D
             yk.push_back(y2-19.0*(y2-y0)/270.0);
             y0adpt = y0;
         };
-        return LinearMultiStep(phi, f, initial, x, 100, 4);
+        return LinearMultiStep(phi, f, initial, x, n, 4);
     }
     if(str=="adaptive Milne-Hamming")
     {
@@ -3646,10 +3728,14 @@ template<class DS,class DO> DO DSolve(std::function<DO(DS,DO)> f,const pair<DS,D
             yk.push_back(y2 - 9.0 * (y2 - y0) / 121.0);
             y0adpt = y0;
         };
-        return LinearMultiStep(phi, f, initial, x, 100, 4);
+        return LinearMultiStep(phi, f, initial, x, n, 4);
     }
     cerr<<"错误：没有定义该方法"<<'\n';
     return x;
+}
+template<class DS,class DO> DO DSolve(std::function<DO(DS,DO)> f,const pair<DS,DO>& initial,DS x,string str)
+{
+    return DSolve(f, initial, x, 100, str);
 }
 template<class DS,class DO> DO DSolve(std::function<DO(DS,DO)> f,const pair<DS,DO>& initial,DS x)
 {

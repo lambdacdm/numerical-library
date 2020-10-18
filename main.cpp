@@ -2,28 +2,44 @@
 //version 0.7.4
 #include <iostream>
 #include "computational.h"
-#include<chrono>
 #include<ctime>
-#include<string>
 using namespace std;
 using namespace malg;
-using namespace chrono;
 int main()
 {
-    Matrix<double> A({{12, -51, 4}, {6, 167, -68}, {-4, 24, -41}});
-    cout << A << endl;
-    auto Slist = SchurDecomposition(A);
-    cout << Slist[0] << endl;
-    cout << Slist[1] << endl;
-    cout << Slist[0]*Slist[1]*Slist[2] << endl;
-    clock_t st, et;
-    st = clock();
-    cout << EigenValueMatrix(A)<< endl;
-    et = clock();
-    cout << et - st << "ms" << endl;
+    int n = 4096;
+    Matrix<double> A = Generate<double>(n, n);
+    cout << "order=" << n << endl;
+    int start, end;
+
+    start = clock();
+    auto LU = LUDecomposition(A);
+    end = clock();
+    auto L = LU[0];
+    auto U = LU[1];
+    cout << "Ordinary LU time=" << double(end - start) / 1000 << "s" << endl;
+    cout << "Ordinary LU error=" << Norm(A-L*U, 1)<<endl;
+
+    start = clock();
+    LU = LUDivideConquer(A);
+    end = clock();
+    L = LU[0];
+    U = LU[1];
+    cout << "Divide Conquer LU time=" << double(end - start) / 1000 << "s" << endl;
+    cout << "Divide Conquer LU error=" << Norm(A-L*U, 1)<<endl;
+
+    start = clock();
+    LU = LUPDecomposition(A);
+    end = clock();
+    L = LU[0];
+    U = LU[1];
+    auto P = LU[2];
+    cout << "LUP time=" << double(end - start) / 1000 << "s" << endl;
+    cout << "LUP error=" << Norm(A-Transpose(P)*L*U, 1)<<endl;
+
     system("pause");
     return 0;
 }
                                     
                     
-                         
+                               
