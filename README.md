@@ -19,7 +19,7 @@ g++ -std=c++14 computational.cpp main.cpp
 * 高精度除法 —— 牛顿迭代法
 * 多项式乘法 —— FFT
 * 多项式求值 —— 秦九韶算法
-* QR分解 —— 修正的Gram-Schmidt算法
+* QR分解 —— 修正的Gram-Schmidt正交化
 * 特征值 —— QR算法
 * 线性方程组求解 —— LUP分解
 * 代数方程(组)求解 —— 牛顿迭代法
@@ -42,4 +42,6 @@ g++ -std=c++14 computational.cpp main.cpp
 * 优化现有的QR分解算法
 * 完善特征值、特征向量求解系统
 * 完善求范数、求条件数等功能
+* 加入SVD分解
+* 完善最小二乘法求解系统
 * 加入新的求解常微分方程（组）的方法
