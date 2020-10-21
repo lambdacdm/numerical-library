@@ -43,12 +43,13 @@ const std::function<DC(DC, DC)> Multiply = [](DC x, DC y) { return x * y; };
 template <class DM>
 double Norm(const vector<DM> &, double);
 template<class DJ> DJ Abs(DJ);
+template <class DJ> DJ Sign(DJ);
 template <class DJ> vector<DJ> Range(DJ, DJ,DJ);
 template <class DJ> vector<DJ> Range(DJ, DJ);
 template <class DJ> vector<DJ> Rand(int);
 template <class DJ> DJ Limit(std::function<DJ(DJ)>, DJ);
 template <class DJ> DJ N(DJ,int);
-inline int Sig(){return rand()%2?1:-1;}//random sign(+/-)
+inline int Sig(){return rand()%2?1:-1;}//random Sign(+/-)
 
 //大整数类
 class BigInt
@@ -83,7 +84,7 @@ class BigInt
         void _signChange(bool);
         friend string Get_digit(const BigInt&);
         friend string GetString(const BigInt &);
-        friend bool Sign(const BigInt&);
+        friend bool PositivityTest(const BigInt&);
         friend unsigned Length(const BigInt &);
 
     private:
@@ -610,6 +611,14 @@ template<class DJ> DJ Abs(DJ a)
     if(a>0)
         return a;
     return -a;
+}
+template<class DJ> DJ Sign(DJ a)
+{
+    if(a>0)
+        return 1;
+    if(a<0)
+        return -1;
+    return 0;
 }
 template <class DJ> vector<DJ> Range(DJ a, DJ b,DJ c)
 {
@@ -1927,20 +1936,27 @@ template<class DB> Matrix<DB> Givens(const Matrix<DB> &x,int i,int j,int c)
     G(j,i)=DB(0)-G(i,j);
     return G;
 }
-template<class DB> Matrix<DB> Householder(const Matrix<DB> &x)
+template<class DB> Matrix<DB> HouseholderNormal(const Matrix<DB> &u)
 {
-    int n=RowSize(x);
-    const DB alpha = VectorNorm(x, 2);
-    if(alpha<1e-14)
-        return Eye<DB>(n);
+    int n=RowSize(u);
     Matrix<DB> e1(n, 1);
     e1(0, 0) = 1;
-    const Matrix<DB> &u = x - alpha * e1;
-    DB beta=VectorNorm(u,2);
-    if(beta<1e-14)
-        return Eye<DB>(n);
-    const Matrix<DB> &v=u/VectorNorm(u,2);
-    return Eye<DB>(n)-DB(2)*v*Transpose(v);
+    const DB alpha = Sign(Get(u,0,0))*VectorNorm(u, 2);
+    const Matrix<DB> &v = u + alpha * e1;
+    DB beta=VectorNorm(v,2);
+    if(beta<Machine_Epsilon)
+        return Matrix<DB>(n,1);
+    const Matrix<DB> &w=v/beta;
+    return w;
+}
+template<class DB> Matrix<DB> ReflectorFromNormal(const Matrix<DB> &w)
+{
+    int n = RowSize(w);
+    return Eye<DB>(n)-DB(2)*w*Transpose(w);
+}
+template<class DB> Matrix<DB> Householder(const Matrix<DB> &u)
+{
+    return ReflectorFromNormal(Householder(u));
 }
 template<class DB> void _HessenbergControl(const Matrix<DB> &A,Matrix<DB> &H,Matrix<DB> &Q,bool open)
 {
@@ -2016,18 +2032,19 @@ template <class DB> vector<Matrix<DB>> QRDecomposition(const Matrix<DB> &A,strin
         Matrix<DB> R = A;
         for (int i = 0; i < n-1;++i)
         {
-            const Matrix<DB> &x = SubMatrix(R, i, i,n-1,i);
-            const Matrix<DB> &Qpart = Householder(x);
-            Matrix<DB> Qcur(n, n);
-            ReplaceMatrix(Qcur,0,0,i-1,i-1,Eye<DB>(i));
-            ReplaceMatrix(Qcur, i, i, n - 1, n - 1, Qpart);
-            Q = Qcur*Q;
-            R = Qcur*R;
+            const Matrix<DB> &u = SubMatrix(R, i, i,n-1,i);
+            const Matrix<DB> &w = HouseholderNormal(u);
+            const auto &R_22 = SubMatrix(R, i, i, n - 1, n - 1);
+            const auto &Q_12 = SubMatrix(Q, 0, i, i - 1, n - 1);
+            const auto &Q_22 = SubMatrix(Q, i, i, n - 1, n - 1);
+            ReplaceMatrix(R, i, i, n - 1, n - 1, R_22 - DB(2) * w * (Transpose(w) * R_22));
+            ReplaceMatrix(Q, 0, i, i - 1, n - 1, Q_12 - DB(2) * (Q_12*w)*Transpose(w));
+            ReplaceMatrix(Q, i, i, n - 1, n - 1, Q_22 - DB(2) * (Q_22*w)*Transpose(w));
         }
         for (int i = 1; i < n;++i)
             for(int j=0;j<i;++j)
                 R(i, j) = 0;
-        return {Transpose(Q), R};
+        return {Q, R};
     }
     if(str=="Givens")
     {
@@ -2056,7 +2073,7 @@ template <class DB> vector<Matrix<DB>> QRDecomposition(const Matrix<DB> &A,strin
 }
 template <class DB> vector<Matrix<DB>> QRDecomposition(const Matrix<DB> &A)
 {
-    return QRDecomposition(A,"Householder");
+    return QRDecomposition(A,"modified Gram-Schmidt");
 }
 template <class DB> vector<Matrix<DB>> QRForHessenberg(const Matrix<DB> &A)
 {
@@ -3690,7 +3707,7 @@ template<class DS,class DO> DO DSolve(std::function<DO(DS,DO)> f,const pair<DS,D
         };
         return Iteration(phi, initial, x, n);
     }
-    if(str=="RK4" || str=="Runge-Kutta")
+    if(str=="RK4" || str=="Runge-Kutta" || str=="RK")
     {
         return RKSolve(f, initial, x, n);
     }

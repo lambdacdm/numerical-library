@@ -344,7 +344,7 @@ string GetString(const BigInt&a)
     reverse(_string.begin(), _string.end());
     return _string;
 }
-bool Sign(const BigInt &a)
+bool PositivityTest(const BigInt &a)
 {
     return a._sign;
 }
@@ -404,7 +404,7 @@ HighPrecision::HighPrecision(const char a[])
 HighPrecision::HighPrecision(const BigInt &a)
 {
     _digitChange(Get_digit(a));
-    _signChange(Sign(a));
+    _signChange(PositivityTest(a));
     _decimal = "";
 }
 HighPrecision::HighPrecision(double a)
@@ -484,8 +484,8 @@ HighPrecision operator+(const HighPrecision &a, const HighPrecision &b)
     BigInt c, d;
     c._digitChange(str1);
     d._digitChange(str2);
-    c._signChange(Sign(a));
-    d._signChange(Sign(b));
+    c._signChange(PositivityTest(a));
+    d._signChange(PositivityTest(b));
     HighPrecision r(c+d);
     const string &str = Get_digit(r);
     if(dsize<str.size())
@@ -505,7 +505,7 @@ HighPrecision operator+(const HighPrecision &a, const HighPrecision &b)
 HighPrecision operator-(const HighPrecision &a)
 {
     HighPrecision b = a;
-    b._signChange(!Sign(a));
+    b._signChange(!PositivityTest(a));
     return b;
 }
 HighPrecision operator-(const HighPrecision &a,const HighPrecision &b)
@@ -519,8 +519,8 @@ HighPrecision operator*(const HighPrecision &a, const HighPrecision &b)
     BigInt c, d;
     c._digitChange(str1);
     d._digitChange(str2);
-    c._signChange(Sign(a));
-    d._signChange(Sign(b));
+    c._signChange(PositivityTest(a));
+    d._signChange(PositivityTest(b));
     HighPrecision r(c*d);
     const string &str=Get_digit(r);
     unsigned dsize=a._decimal.size() + b._decimal.size();
@@ -574,7 +574,7 @@ BigInt IntegerPart(const HighPrecision &a)
 {
     BigInt r;
     r._digitChange(Get_digit(a));
-    r._signChange(Sign(a));
+    r._signChange(PositivityTest(a));
     return r;
 }
 HighPrecision DecimalPart(const HighPrecision &a)
@@ -598,7 +598,7 @@ string TopKDigit(const HighPrecision &a,unsigned k)
         result.insert(result.end(), k, '0');
         return result;
     }
-    if(!Sign(a))
+    if(!PositivityTest(a))
         result.push_back('-');
     const string &cat = a._decimal + Get_digit(a);
     int n = cat.size();
@@ -665,7 +665,7 @@ HighPrecision SignificantFigure(const HighPrecision &a, unsigned n)
     HighPrecision r;
     r._decimal=str.substr(0,decilen);
     r._digitChange(str.substr(decilen));
-    r._signChange(Sign(a));
+    r._signChange(PositivityTest(a));
     r.CutTail();
     return r;
 }
