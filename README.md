@@ -19,8 +19,8 @@ g++ -std=c++14 computational.cpp main.cpp
 * 高精度除法 —— 牛顿迭代法
 * 多项式乘法 —— FFT
 * 多项式求值 —— 秦九韶算法
-* QR分解 —— Householder变换
-* 特征值 —— QR分解迭代
+* QR分解 —— 修正的Gram-Schmidt算法
+* 特征值 —— QR算法
 * 线性方程组求解 —— LUP分解
 * 代数方程(组)求解 —— 牛顿迭代法
 * 插值 —— 分段线性插值
