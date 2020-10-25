@@ -2535,6 +2535,18 @@ template<class DB> Matrix<DB> operator^(const Matrix<DB> &a,int n)
     return b;
 }
 //范数、条件数
+template <class DB> DB SpectralRadius(const Matrix<DB> &a)
+{
+    auto v=EigenValue(a);
+    DB maximum = DB(0);
+    for(auto item:v)
+    {
+        auto temp = Abs(item);
+        if(temp>maximum)
+            maximum = temp;
+    }
+    return maximum;
+}
 template <class DB> DB Norm(const Matrix<DB> &a, double p)
 {
     if(p==INFINITY)
@@ -2571,15 +2583,7 @@ template <class DB> DB Norm(const Matrix<DB> &a, double p)
     }
     if(p==2)
     {
-        auto v=EigenValue(Transpose(a) * a);
-        DB maximum = DB(0);
-        for(auto item:v)
-        {
-            auto temp = Abs(item);
-            if(temp>maximum)
-                maximum = temp;
-        }
-        return Sqrt(maximum);
+        return Sqrt(SpectralRadius(Transpose(a) * a));
     }
     cerr << "错误：待开发。" << '\n';
     return 0;
