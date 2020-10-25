@@ -1956,7 +1956,7 @@ template<class DB> Matrix<DB> ReflectorFromNormal(const Matrix<DB> &w)
 }
 template<class DB> Matrix<DB> Householder(const Matrix<DB> &u)
 {
-    return ReflectorFromNormal(Householder(u));
+    return ReflectorFromNormal(HouseholderNormal(u));
 }
 template<class DB> void _HessenbergControl(const Matrix<DB> &A,Matrix<DB> &H,Matrix<DB> &Q,bool open)
 {
@@ -2568,6 +2568,18 @@ template <class DB> DB Norm(const Matrix<DB> &a, double p)
                 max = s;
         }
         return max;
+    }
+    if(p==2)
+    {
+        auto v=EigenValue(Transpose(a) * a);
+        DB maximum = DB(0);
+        for(auto item:v)
+        {
+            auto temp = Abs(item);
+            if(temp>maximum)
+                maximum = temp;
+        }
+        return Sqrt(maximum);
     }
     cerr << "错误：待开发。" << '\n';
     return 0;
@@ -3609,6 +3621,8 @@ template <class DB> Polynomial<DB> PolyFit(std::function<DB(DB)> f,const vector<
 //常微分方程
 template<class DS,class DO,class DP> DO Iteration(const DP &phi,const pair<DS,DO> &initial,DS x,int n)
 {
+    if(n==0)
+        return get<1>(initial);
     DS h= (x - get<0>(initial))/n;//步长
     DS xk = get<0>(initial);
     DO yk= get<1>(initial);
@@ -3635,11 +3649,13 @@ template<class DS,class DO> DO RKSolve(std::function<DO(DS,DO)> f,const pair<DS,
 template<class DS,class DO,class DP,class DF> 
 DO LinearMultiStep(const DP &phi,const DF &f,const pair<DS,DO> &initial,DS x,int n,int startstep)
 {
+    if(n==0)
+        return get<1>(initial);
     DS h = (x - get<0>(initial))/n;
     std::deque<DS> xk={get<0>(initial)};
     std::deque<DO> yk={get<1>(initial)};
     std::deque<DO> fk={f(xk[0],yk[0])};
-    for (int i =1; i<startstep;++i)
+    for (int i =1; i<=std::min(startstep-1,n);++i)
     {
         yk.push_back(RKSolve(f,{xk.back(),yk.back()},xk.back()+h,1));
         xk.push_back(xk.back()+h);
@@ -3669,10 +3685,11 @@ template<class DS,class DO> DO DSolve(std::function<DO(DS,DO)> f,const pair<DS,D
     if(str=="backward Euler" || str=="implicit Euler")
     {
         auto phi = [=](DS &xk, DO &yk, DS &h) {
-            DS x_plus_h = x + h;
-            DO y0=yk+h*f(xk,yk);
-            DO y1=yk+h*f(x_plus_h,y0);
-            yk = yk + h * f(x_plus_h, y1);
+            DS x_plus_h = xk + h;
+            DO y=yk+h*f(xk,yk);
+            for (unsigned i = 0; i <3;++i)
+                y = yk + h * f(x_plus_h, y);
+            yk = yk + h * f(x_plus_h, y);
         };
         return Iteration(phi, initial, x, n);
     }
@@ -3688,7 +3705,7 @@ template<class DS,class DO> DO DSolve(std::function<DO(DS,DO)> f,const pair<DS,D
         };
         return Iteration(phi, initial, x, n);
     }
-    if(str=="Heun" || str=="imporved Euler")
+    if(str=="Heun" || str=="improved Euler")
     {
         auto phi = [=](DS &xk, DO &yk, DS &h) {
             DO k1=f(xk,yk);
@@ -3710,6 +3727,13 @@ template<class DS,class DO> DO DSolve(std::function<DO(DS,DO)> f,const pair<DS,D
     if(str=="RK4" || str=="Runge-Kutta" || str=="RK")
     {
         return RKSolve(f, initial, x, n);
+    }
+    if(str=="Adams-Bashforth")
+    {
+        auto phi = [=](deque<DS> &xk, deque<DO> &yk, deque<DO> &fk, DS &h, DO &y0adpt) {
+            yk.push_back(yk[1] + 3.0 / 2.0 * h * fk[1] - 1.0 / 2.0 * h * fk[0]);
+        };
+        return LinearMultiStep(phi, f, initial, x, n, 2);
     }
     if(str=="Adams")
     {
@@ -3754,9 +3778,13 @@ template<class DS,class DO> DO DSolve(std::function<DO(DS,DO)> f,const pair<DS,D
 {
     return DSolve(f, initial, x, 100, str);
 }
+template<class DS,class DO> DO DSolve(std::function<DO(DS,DO)> f,const pair<DS,DO>& initial,DS x,int n)
+{
+    return DSolve(f, initial, x, n,"adaptive Milne-Hamming");
+}
 template<class DS,class DO> DO DSolve(std::function<DO(DS,DO)> f,const pair<DS,DO>& initial,DS x)
 {
-    return DSolve(f, initial, x, "adaptive Milne-Hamming");
+    return DSolve(f, initial, x, 100);
 }
 template<class DS,class DO> std::function<DO(DS)> DSolve(std::function<DO(DS,DO)> f,const pair<DS,DO> &initial,string str)
 {
