@@ -12,6 +12,7 @@
 #include<deque>
 #include<thread>
 #include<tuple>
+#include<cstdint>
 //#include<execution>
 #include<utility>
 using std::cerr;
@@ -77,10 +78,13 @@ class BigInt
         friend BigInt operator*(const BigInt &,const BigInt&);
         friend BigInt operator/(const BigInt&, const BigInt&);
         friend BigInt operator^(const BigInt&, int);
+        friend BigInt operator^(const BigInt&,unsigned long long);
         BigInt &operator+=(const BigInt &);
         BigInt &operator-=(const BigInt &);
 
         explicit operator int();
+        friend BigInt Product_NTT(const BigInt &, const BigInt &, uint8_t);
+        friend BigInt Product_DivideConquer(const BigInt &, const BigInt &);
         void Reassign(string );
         void _digitChange(string);
         void _signChange(bool);
@@ -93,8 +97,7 @@ class BigInt
         string _digit;
         bool _sign;
 };
-vector<long long> CompressBit(const string&);
-string BitToString(const vector<long long> &);
+vector<unsigned long long> CompressBit(const string&, unsigned int);
 
 class HighPrecision: public BigInt
 {
@@ -171,8 +174,8 @@ Polynomial<double> operator*(const Polynomial<double>&,const Polynomial<double>&
 Polynomial<float> operator*(const Polynomial<float>&,const Polynomial<float>&);
 Polynomial<complex<double>> operator*(const Polynomial<complex<double>> &, const Polynomial<complex<double>> &);
 Polynomial<complex<float>> operator*(const Polynomial<complex<float>> &, const Polynomial<complex<float>> &);
-Polynomial<unsigned> operator*(const Polynomial<unsigned> &, const Polynomial<unsigned> &);
-Polynomial<unsigned long long> operator*(const Polynomial<unsigned long long> &, const Polynomial<unsigned long long> &);
+/*Polynomial<unsigned> operator*(const Polynomial<unsigned> &, const Polynomial<unsigned> &);
+Polynomial<unsigned long long> operator*(const Polynomial<unsigned long long> &, const Polynomial<unsigned long long> &);*/ /*test*/
 
 
 //矩阵类
@@ -344,9 +347,9 @@ BigInt Fibonacci(int);
 
 
 //快速傅里叶变换
-inline int Rev(int k,int m)
+inline uint32_t Rev(uint32_t k,uint8_t m)
 {
-    int s = 0;
+    uint32_t s = 0;
     while(m>0)
     {
         --m;
@@ -357,10 +360,10 @@ inline int Rev(int k,int m)
 }
 template<class DC> vector<DC> bit_reverse_copy(const vector<DC> &a)
 {
-    int n = a.size();
-    int m = log2(n);
+    uint32_t n = a.size();
+    uint8_t m = log2(n);
     vector<DC> A(n);
-    for(int k=0;k<n;++k)
+    for(uint32_t k=0;k<n;++k)
         A[Rev(k,m)] = a[k];
     return A;
 }
@@ -476,8 +479,8 @@ template<class DC> vector<DC> RealFFT(const vector<DC> &x,const vector<DC> &y)
 }
 template<class DC> vector<vector<DC>> _AddZero(const vector<DC> &x,const vector<DC> &y)
 {
-    unsigned n = x.size() > y.size() ? x.size() : y.size();
-    unsigned nearest = 1 << unsigned(log2(n));
+    uint32_t n = x.size() > y.size() ? x.size() : y.size();
+    uint32_t nearest = 1 << uint8_t(log2(n));
     if(n!=nearest)
         nearest = nearest << 1;
     vector<DC> a=x;
@@ -515,83 +518,83 @@ template<class DC> DC ModPower(DC a,DC n,DC mod)
     {
         if(n&1)
         {
-            b =1ll*m*b%mod;
+            b =DC(1)*m*b%mod;
         }
-        n=n>>1;
-        m=1ll*m*m%mod;
+        n>>=1;
+        m=DC(1)*m*m%mod;
     }
-    return b;
+      return b;
 }
 template<class DC> vector<DC> ModProduct(const vector<DC>& a,const vector<DC> &b,DC mod)
 {
-    int n = a.size()<b.size()?a.size():b.size();
+    uint32_t n = a.size()<b.size()?a.size():b.size();
     vector<DC> c(n);
-    for (int i = 0; i < n;++i)
-        c[i] = 1ll*a[i]*b[i]%mod;
+    for (uint32_t i = 0; i < n;++i)
+        c[i] = DC(1)*a[i]*b[i]%mod;
     return c;
 }
 template<class DC> vector<DC> iterative_NTT(const vector<DC>&a,bool _jud)
 {
-    const DC g = 3;
-    const DC gi = 332748118;
-    const DC mod = 998244353;
+    const DC g = 3; /* g is the minimal primitive root of mod */
+    const DC gi = 332748118; /* gi is the modular inverse of g modulo mod */ /* 332748118 */ /* 1398101334 */
+    const DC mod = 998244353; /* mod must be a prime */ /* 998244353 */ /* 4194304001 */
     vector<DC> A= bit_reverse_copy(a);
-    unsigned n = a.size();
+    uint32_t n = a.size();
     DC omega, omega_m;
-    unsigned m, halfm;
-    for (unsigned s = 1; s <= unsigned(log2(n));++s)
+    uint32_t m, halfm;
+    for (uint8_t s = 1; s <= uint8_t(log2(n));++s)
     {
         m= 1<<s;
         if(_jud)
             omega_m=ModPower(g,(mod-1)/DC(m),mod);
         else
             omega_m=ModPower(gi,(mod-1)/DC(m),mod);
-        for (unsigned k = 0; k < n;k=k+m)
+        for (uint32_t k = 0; k < n;k=k+m)
         {
             omega =1;
             halfm = m >> 1;
-            for (unsigned j = 0; j < halfm;++j)
+            for (uint32_t j = 0; j < halfm;++j)
             {
-                DC t=1ll*omega*A[k+j+halfm]%mod;
+                DC t=DC(1)*omega*A[k+j+halfm]%mod;
                 DC u = A[k + j];
                 A[k+j]=(u+t)%mod;
                 A[k + j + halfm] =(mod+u - t)%mod;
-                omega =1ll*omega * omega_m%mod;
+                omega =DC(1)*omega * omega_m%mod;
             }
         }
     }
     if(!_jud)
     {
         DC n_inverse=ModPower(DC(n),mod-2,mod);
-        for (unsigned i = 0; i < n;++i)
-            A[i]=1ll*A[i]*n_inverse%mod;//这里要乘长度的逆元
+        for (uint32_t i = 0; i < n;++i)
+            A[i]=DC(1)*A[i]*n_inverse%mod;//这里要乘长度的逆元
     }
     return A;
 }
 template<class DC> vector<DC> NTT(const vector<DC> &x, const vector<DC> &y)
 {
-    unsigned n=x.size();
+    uint32_t n=x.size();
     vector<DC> a = x;
     vector<DC> b = y;
     a.resize(n << 1);
     b.resize(n << 1);
-    const DC mod=998244353;
-    auto r=iterative_NTT(ModProduct(iterative_NTT(a, true), iterative_NTT(b, true),mod), false);
+    const DC mod=998244353; /* previous mod = 998244353 */ /* 4194304001 */
+    vector<DC> r=iterative_NTT(ModProduct(iterative_NTT(a, true), iterative_NTT(b, true),mod), false);
     r.pop_back();
     return r;
 }
 template<class DC> vector<DC> IntConvolution(const vector<DC> &x,const vector<DC> &y)
 {
     vector<vector<DC>> ab = _AddZero(x, y);
-    auto r=NTT(ab[0], ab[1]);
+    vector<DC> r=NTT(ab[0], ab[1]);
     r.resize(x.size()+y.size()-1);
     return r;
 }
-template<class DC> vector<DC> CarryBit(const vector<DC>& a,DC bit)
+template<class DC> vector<DC> CarryBit(const vector<DC>& a,uint32_t bit)
 {
     vector<DC> r=a;
-    unsigned n = r.size();
-    for (unsigned i = 0; i <n-1;++i)
+    uint32_t n = r.size();
+    for (uint32_t i = 0; i <n-1;++i)
     {
         if(r[i]>=bit)
         {
@@ -605,6 +608,19 @@ template<class DC> vector<DC> CarryBit(const vector<DC>& a,DC bit)
         r[r.size() - 2] = r[r.size()-2] % bit;
     }
     return r;
+}
+template<class DC> string BitToString(const vector<DC> &a,uint8_t d)
+{
+    string str,temp;
+    for (uint32_t i = 0; i < a.size();++i)
+    {
+        temp = std::to_string(a[i]);
+        reverse(temp.begin(), temp.end());
+        if(temp.size()<d)
+            temp.append(d - temp.size(), '0');
+        str.append(temp);
+    }
+    return str;
 }
 
 //杂例I
@@ -2124,9 +2140,9 @@ template <class DB> vector<Matrix<DB>> QRDecomposition(const Matrix<DB> &A,strin
             const auto &R_22 = SubMatrix(R, i, i, n - 1, n - 1);
             const auto &Q_12 = SubMatrix(Q, 0, i, i - 1, n - 1);
             const auto &Q_22 = SubMatrix(Q, i, i, n - 1, n - 1);
-            ReplaceMatrix(R, i, i, n - 1, n - 1, R_22 - DB(2) * w * (Transpose(w) * R_22));
+            ReplaceMatrix(R, i, i, n - 1, n - 1, R_22 - (DB(2)*w) * (Transpose(w) * R_22));
             ReplaceMatrix(Q, 0, i, i - 1, n - 1, Q_12 - DB(2) * (Q_12*w)*Transpose(w));
-            ReplaceMatrix(Q, i, i, n - 1, n - 1, Q_22 - DB(2) * (Q_22*w)*Transpose(w));
+            ReplaceMatrix(Q, i, i, n - 1, n - 1, Q_22 - (Q_22 * (DB(2)*w))*Transpose(w));
         }
         for (int i = 1; i < n;++i)
             for(int j=0;j<i;++j)

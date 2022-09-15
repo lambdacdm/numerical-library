@@ -1,6 +1,8 @@
 #include "computational.h"
 #include<algorithm>
 #include<string>
+#include<cstdint>
+#include<chrono>
 using std::to_string;
 
 namespace malg{
@@ -191,8 +193,8 @@ BigInt operator-(const BigInt &a,const BigInt &b)
         r._digit.push_back(flag + '0');
     r.cutzero();
     return r;
-}/*
-BigInt operator*(const BigInt &x,const BigInt &y)
+}
+BigInt Product_DivideConquer(const BigInt &x,const BigInt &y)
 {
     BigInt p = x;
     BigInt q = y;
@@ -221,56 +223,59 @@ BigInt operator*(const BigInt &x,const BigInt &y)
     p1._digit=p._digit.substr(k, m - k);
     q0._digit=q._digit.substr(0,u);
     q1._digit=q._digit.substr(u,n-u);
-    BigInt r0=p0*q0;
-    BigInt r1 = p1 * q1;
-    BigInt r2 = (p0 + p1) * (q0 + q1);
+    BigInt r0= Product_DivideConquer(p0,q0);
+    BigInt r1 = Product_DivideConquer(p1,q1);
+    BigInt r2 = Product_DivideConquer((p0 + p1), (q0 + q1));
     BigInt r=r0 + ((r2 - r0 - r1) >> k) + (r1 >> (k << 1));
     r.cutzero();
     return r;
-}*/
-vector<long long> CompressBit(const string &a_str)
+}
+vector<unsigned long long> CompressBit(const string &a_str, uint8_t d)
 {
-    unsigned n = a_str.size();
-    unsigned aq = n>>2;
-    unsigned ar = n%4;
-    vector<long long> a(aq);
+    uint32_t n = a_str.size();
+    uint32_t aq = n/d;
+    uint8_t ar = n%d;
+    vector<unsigned long long> a(aq);
     string temp;
-    for (unsigned i = 0; i < a.size();++i)
+    for (uint32_t i = 0; i < a.size();++i)
     {
-        temp=a_str.substr(i<<2,4);
+        temp=a_str.substr(i*d, d);
         reverse(temp.begin(), temp.end());
-        a[i] =stoll(temp);
+        a[i] =stoull(temp);
     }  
     if(ar)
     {
         temp=a_str.substr(n-ar, ar);
         reverse(temp.begin(),temp.end());
-        a.push_back(stoll(temp));
+        a.push_back(stoull(temp));
     }
     return a;
 }
-string BitToString(const vector<long long> &a)
+BigInt Product_NTT(const BigInt &x,const BigInt &y, uint8_t d)
 {
-    string str,temp;
-    for (unsigned i = 0; i < a.size();++i)
-    {
-        temp = to_string(a[i]);
-        reverse(temp.begin(), temp.end());
-        if(temp.size()<4)
-            temp.append(4 - temp.size(), '0');
-        str.append(temp);
-    }
-    return str;
-}
-BigInt operator*(const BigInt &x,const BigInt &y)
-{
-    auto rr =IntConvolution(CompressBit(x._digit), CompressBit(y._digit));
-    auto r = CarryBit<long long>(rr, 10000);
+    if(d>4)
+        d = 4;
+    const vector<uint32_t> mapping({1, 10, 100, 1000, 10000});
+    auto rr =IntConvolution(CompressBit(x._digit,d), CompressBit(y._digit,d));
+    auto r = CarryBit<unsigned long long>(rr, mapping[d]);
     BigInt s;
-    s._digit=BitToString(r);
+    s._digit=BitToString(r,d);
     s._sign = (x._sign == y._sign);
     s.cutzero();
     return s;
+}
+BigInt operator*(const BigInt &x,const BigInt &y)
+{
+    uint32_t n=std::max((x._digit).size(),(y._digit).size());
+    if (n<=32)
+        return Product_NTT(x, y, uint8_t(4));
+        else if (n<=4096)
+            return Product_NTT(x, y, uint8_t(3));     
+            else if (n<=262144)
+                return Product_NTT(x, y, uint8_t(2));
+    return Product_NTT(x, y, uint8_t(1));
+    //auto a = Product_DivideConquer(x, y);
+    //return a;
 }
 BigInt operator/(const BigInt &p,const BigInt &q)
 {
@@ -283,6 +288,26 @@ BigInt operator/(const BigInt &p,const BigInt &q)
     return p;
 }
 BigInt operator^(const BigInt &a, int n)
+{
+    if(n<0)
+    {
+        cerr << "错误：尚不支持大整数的负数次幂。" << '\n';
+        return a;
+    }
+    BigInt m=a;
+    BigInt b("1");
+    while(n>=1)
+    {
+        if(n&1)
+        {
+            b = m * b;
+        }
+        n=n>>1;
+        m = m * m;
+    }
+    return b;
+}
+BigInt operator^(const BigInt &a,unsigned long long n)
 {
     if(n<0)
     {
@@ -744,14 +769,14 @@ Polynomial<complex<float>> operator*(const Polynomial<complex<float>> &f, const 
 {
     return Polynomial<complex<float>> (Convolution(GetCoef(f), GetCoef(g)));
 }
-Polynomial<unsigned> operator*(const Polynomial<unsigned> &f, const Polynomial<unsigned> &g)
+/*Polynomial<unsigned> operator*(const Polynomial<unsigned> &f, const Polynomial<unsigned> &g)
 {
     return Polynomial<unsigned>(IntConvolution(GetCoef(f), GetCoef(g)));
 }
 Polynomial<unsigned long long> operator*(const Polynomial<unsigned long long> &f, const Polynomial<unsigned long long> &g)
 {
     return Polynomial<unsigned long long>(IntConvolution(GetCoef(f), GetCoef(g)));
-}
+}*/ /*test*/
 
 
 //一元函数求根
