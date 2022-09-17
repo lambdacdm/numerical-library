@@ -28,7 +28,20 @@ BigInt::BigInt()
     _digit= "0";
     _sign = true;
 }
-BigInt::BigInt(string a)
+BigInt::BigInt(const string &a)
+{
+    _digit = a;
+    reverse(_digit.begin(), _digit.end());
+    if(_digit.back()=='-')
+    {
+        _sign = false;
+        _digit.pop_back();
+    }
+    else
+        _sign = true;
+    cutzero();
+}
+BigInt::BigInt(const char * a)
 {
     _digit = a;
     reverse(_digit.begin(), _digit.end());
@@ -60,6 +73,12 @@ BigInt::BigInt(bool flag)
         _sign = true;
     else
         _sign = false;
+}
+BigInt::BigInt(const string &a, bool flag)
+{
+    _digit = a;
+    _sign = flag;
+    cutzero();
 }
 BigInt operator-(const BigInt &a)
 {
@@ -206,7 +225,7 @@ BigInt Product_DivideConquer(const BigInt &x,const BigInt &y)
     int n =q._digit.size();
     int k = (m >> 1);
     int u = (n >> 1);
-    if(m<=8 && n<=8 )
+    if(m<=8 && n<=8)
     {
         BigInt r;
         string a = p._digit;
@@ -230,9 +249,9 @@ BigInt Product_DivideConquer(const BigInt &x,const BigInt &y)
     r.cutzero();
     return r;
 }
-vector<unsigned long long> CompressBit(const string &a_str, uint8_t d)
+vector<unsigned long long> CompressBit(const string &a_str)
 {
-    uint32_t n = a_str.size();
+    /*uint32_t n = a_str.size();
     uint32_t aq = n/d;
     uint8_t ar = n%d;
     vector<unsigned long long> a(aq);
@@ -248,34 +267,32 @@ vector<unsigned long long> CompressBit(const string &a_str, uint8_t d)
         temp=a_str.substr(n-ar, ar);
         reverse(temp.begin(),temp.end());
         a.push_back(stoull(temp));
-    }
+    }*/
+    vector<unsigned long long> a(a_str.size());
+    std::transform(a_str.begin(), a_str.end(), a.begin(), [](char c)
+                   { return c - '0'; });
     return a;
 }
-BigInt Product_NTT(const BigInt &x,const BigInt &y, uint8_t d)
+BigInt Product_NTT(const BigInt &x,const BigInt &y)
 {
-    if(d>4)
-        d = 4;
-    const vector<uint32_t> mapping({1, 10, 100, 1000, 10000});
-    auto rr =IntConvolution(CompressBit(x._digit,d), CompressBit(y._digit,d));
-    auto r = CarryBit<unsigned long long>(rr, mapping[d]);
-    BigInt s;
-    s._digit=BitToString(r,d);
-    s._sign = (x._sign == y._sign);
-    s.cutzero();
-    return s;
+    /*if(d>4) d = 4; 
+    const vector<uint32_t> mapping({1, 10, 100, 1000, 10000});*/
+    auto rr =IntConvolution(CompressBit(x._digit), CompressBit(y._digit));
+    auto r = CarryBit<unsigned long long>(rr, 10);
+    return BigInt(BitToString(r), (x._sign == y._sign));
 }
 BigInt operator*(const BigInt &x,const BigInt &y)
 {
     uint32_t n=std::max((x._digit).size(),(y._digit).size());
-    if (n<=32)
+    /*if (n<=32)
         return Product_NTT(x, y, uint8_t(4));
         else if (n<=4096)
             return Product_NTT(x, y, uint8_t(3));     
             else if (n<=262144)
-                return Product_NTT(x, y, uint8_t(2));
-    return Product_NTT(x, y, uint8_t(1));
-    //auto a = Product_DivideConquer(x, y);
-    //return a;
+                return Product_NTT(x, y, uint8_t(2));*/
+    if (n<=15)
+        return Product_DivideConquer(x, y);
+    return Product_NTT(x, y);
 }
 BigInt operator/(const BigInt &p,const BigInt &q)
 {

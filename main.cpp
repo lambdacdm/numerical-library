@@ -13,11 +13,11 @@ int main()
     auto stre = string("109931986732829734979866232821433543901088049");
     BigInt a(stra);
     BigInt b(strb);
-    BigInt e(stre);
-    auto start = chrono::system_clock::now();
-    cout << (BigInt(333333) ^ 333333) << endl;
-    auto end = chrono::system_clock::now();
-    cout << "time=" << chrono::duration_cast<chrono::milliseconds>(end - start).count() << endl;
+    BigInt e("123456789012345");
+    auto start = std::chrono::system_clock::now();
+    std::cout << Fibonacci(10000000) << endl;
+    auto end = std::chrono::system_clock::now();    
+    std::cout << "total time=" << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << std::endl;
     system("pause");
     return 0;
 }

@@ -11,6 +11,7 @@
 #include<algorithm>
 #include<deque>
 #include<thread>
+#include <iterator>
 #include<tuple>
 #include<cstdint>
 //#include<execution>
@@ -60,9 +61,11 @@ class BigInt
     public:
         BigInt cutzero();
         BigInt();
-        BigInt(string);
+        BigInt(const string&);
+        BigInt(const char *);
         BigInt(int);
         BigInt(bool);
+        BigInt(const string &, bool);
 
         friend BigInt operator-(const BigInt &);
         friend bool operator==(const BigInt&, const BigInt&);
@@ -83,7 +86,7 @@ class BigInt
         BigInt &operator-=(const BigInt &);
 
         explicit operator int();
-        friend BigInt Product_NTT(const BigInt &, const BigInt &, uint8_t);
+        friend BigInt Product_NTT(const BigInt &, const BigInt &);
         friend BigInt Product_DivideConquer(const BigInt &, const BigInt &);
         void Reassign(string );
         void _digitChange(string);
@@ -541,10 +544,9 @@ template<class DC> vector<DC> iterative_NTT(const vector<DC>&a,bool _jud)
     vector<DC> A= bit_reverse_copy(a);
     uint32_t n = a.size();
     DC omega, omega_m;
-    uint32_t m, halfm;
-    for (uint8_t s = 1; s <= uint8_t(log2(n));++s)
+    uint32_t halfm;
+    for (uint32_t m=2; m<=n; m<<=1)
     {
-        m= 1<<s;
         if(_jud)
             omega_m=ModPower(g,(mod-1)/DC(m),mod);
         else
@@ -609,8 +611,10 @@ template<class DC> vector<DC> CarryBit(const vector<DC>& a,uint32_t bit)
     }
     return r;
 }
-template<class DC> string BitToString(const vector<DC> &a,uint8_t d)
+template<class DC> string BitToString(const vector<DC> &a)
 {
+    //auto start = std::chrono::system_clock::now(); 
+    /*uint32_t n = a.size();
     string str,temp;
     for (uint32_t i = 0; i < a.size();++i)
     {
@@ -619,7 +623,10 @@ template<class DC> string BitToString(const vector<DC> &a,uint8_t d)
         if(temp.size()<d)
             temp.append(d - temp.size(), '0');
         str.append(temp);
-    }
+    }*/
+    string str(a.size(),' ');
+    std::transform(a.begin(), a.end(), str.begin(), [](DC c)
+                   { return '0'+c; });
     return str;
 }
 
